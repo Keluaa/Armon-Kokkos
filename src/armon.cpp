@@ -57,6 +57,7 @@ struct Params
     bool cst_dt = false;
 
     bool write_output = false;
+    bool write_throughput = false;
     int verbose = 2;
 
     const char* output_file = "output_cpp";
@@ -478,7 +479,7 @@ void update_EOS(const Params& p, Data& d)
 }
 
 
-void time_loop(const Params& p, Data& d)
+double time_loop(const Params& p, Data& d)
 {
     int cycles = 0;
     flt_t t = 0., dta = 0.;
@@ -516,6 +517,8 @@ void time_loop(const Params& p, Data& d)
     printf("Grind time: %.4g µs/cell/cycle\n", grind_time);
     printf("Cells/sec:  %.4g Mega cells/sec\n", 1. / grind_time);
     printf("Cycles:     %d\n\n", cycles);
+
+    return grind_time;
 }
 
 
@@ -532,6 +535,30 @@ void write_output(const Params& p, const HostData& d)
 
     printf("Done.\n\n");
 }
+
+
+const char USAGE[] = R"(
+ == Armon ==
+CFD 1D solver using the conservative Euler equations in the lagrangian description.
+Parallelized using Kokkos
+
+Options:
+    -h or --help            Prints this message and exit
+    -t <test>               Test case: 'Sod' or 'Bizarrium'
+    -s <scheme>             Numeric scheme: 'Godunov' (first order) or 'GAD-minmod' (second order, minmod limiter)
+    --cells N               Number of cells in the mesh
+    --cycle N               Maximum number of iterations
+    --riemann <solver>      Riemann solver: 'acoustic' only
+    --euler 0-1             Enable the eulerian projection step after each iteration
+    --time T                Maximum time (in seconds)
+    --cfl C                 CFL number
+    --dt T                  Initial time step (in seconds)
+    --cst-dt 0-1            Constant time step mode
+    --write-output 0-1      If the variables should be written to the output file
+    --output <file>         The output file name/path
+    --write-throughput 0-1  Enable writing the cell throughput to a separate file (in Mega cells/sec)
+    --verbose 0-3           Verbosity (0: high, 3: low)
+)";
 
 
 bool parse_arguments(Params& p, int argc, char** argv)
@@ -614,6 +641,14 @@ bool parse_arguments(Params& p, int argc, char** argv)
             p.output_file = argv[i+1];
             i++;
         }
+        else if (strcmp(argv[i], "--write-throughput") == 0) {
+            p.write_throughput = argv[i + 1];
+            i++;
+        }
+        else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+            puts(USAGE);
+            return false;
+        }
         else {
             fprintf(stderr, "Wrong option: %s\n", argv[i]);
             return false;
@@ -660,12 +695,18 @@ bool armon(int argc, char** argv)
     HostData host_data = data.as_mirror();
 
     TIC(); init_test(params, data); TAC("init_test");
-    time_loop(params, data);
+    double grind_time = time_loop(params, data);
 
     data.deep_copy_to_mirror(host_data);
 
     if (params.write_output) {
         write_output(params, host_data);
+    }
+
+    if (params.write_throughput) {
+        FILE* grind_time_file = fopen("cell_throughput", "w");
+        fprintf(grind_time_file, "%f", 1. / grind_time);
+        fclose(grind_time_file);
     }
 
     if (params.verbose < 3) {
@@ -685,12 +726,7 @@ bool armon(int argc, char** argv)
 int main(int argc, char* argv[])
 {
     Kokkos::initialize(argc, argv);
-
-//    Kokkos::print_configuration(std::cout);
-
     bool ok = armon(argc, argv);
-
     Kokkos::finalize();
-
     return !ok;
 }
