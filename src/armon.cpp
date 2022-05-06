@@ -6,19 +6,13 @@
 #include <map>
 #include <string>
 
-#include <cfenv>
-
 #include <Kokkos_Core.hpp>
 
-#define ON true
-#define OFF false
 
-#ifndef USE_GPU
-#define USE_GPU 0
-#endif
-
-#ifndef USE_THREADING
-#define USE_THREADING 0
+#ifdef KOKKOS_ENABLE_PRAGMA_IVDEP
+#define USE_SIMD 1
+#else
+#define USE_SIMD 0
 #endif
 
 
@@ -65,15 +59,18 @@ struct Params
     void print() const
     {
         printf("Parameters:\n");
-        if (USE_THREADING) {
-            int max_num_threads = Kokkos::DefaultExecutionSpace::concurrency();
-            printf(" - multithreading: 1, (%d threads)\n", max_num_threads);
-        }
-        else {
-            printf(" - multithreading: 0\n");
-        }
-        printf(" - use simd:   TODO\n"); // TODO
-        printf(" - use gpu:    %d\n", USE_GPU);
+#ifdef KOKKOS_ENABLE_OPENMP
+        int max_num_threads = Kokkos::OpenMP::concurrency();
+        printf(" - multithreading: 1, (%d threads)\n", max_num_threads);
+#else
+        printf(" - multithreading: 0\n");
+#endif
+        printf(" - use simd:   %d\n", USE_SIMD);
+#ifdef KOKKOS_ENABLE_CUDA
+        printf(" - use gpu:    %d\n", Kokkos::Cuda::impl_is_initialized());
+#else
+        printf(" - use gpu:    %d\n", 0);
+#endif
         printf(" - ieee bits:  %lu\n", 8 * sizeof(flt_t));
         printf("\n");
         printf(" - test:       %s\n", (test == Test::Sod) ? "Sod" : "Bizarrium");
@@ -105,6 +102,7 @@ struct DataHolder
 
     DataHolder() = default;
 
+    [[maybe_unused]]
     DataHolder(const std::string& label, int size)
         : x(label, size)
         , X(label, size)
@@ -679,11 +677,9 @@ bool armon(int argc, char** argv)
 
 int main(int argc, char* argv[])
 {
-    feenableexcept(FE_INVALID);
-
     Kokkos::initialize(argc, argv);
 
-    Kokkos::print_configuration(std::cout);
+//    Kokkos::print_configuration(std::cout);
 
     bool ok = armon(argc, argv);
 
