@@ -16,7 +16,12 @@
 #endif
 
 
+#if USE_SINGLE_PRECISION
+typedef float flt_t;
+#else
 typedef double flt_t;
+#endif
+
 
 using view = Kokkos::View<flt_t*>;
 using host_view = view::HostMirror;
@@ -76,7 +81,7 @@ struct Params
         printf(" - test:       %s\n", (test == Test::Sod) ? "Sod" : "Bizarrium");
         printf(" - riemann:    %s\n", "acoustic");
         printf(" - scheme:     %s\n", (scheme == Scheme::Godunov) ? "Godunov" : "GAD-minmod");
-        printf(" - nb cells:   %d\n", nb_cells);
+        printf(" - nb cells:   %g\n", double(nb_cells));
         printf(" - CFL:        %g\n", cfl);
         printf(" - Dt init:    %g\n", Dt);
         printf(" - euler proj: %d\n", euler_projection);
@@ -211,16 +216,18 @@ void bizarriumEOS(const Params& p, Data& d)
         flt_t f2 = (2*q+6*r*x+2*s*f1)/(1-s*x);
         flt_t f3 = (6*r+3*s*f2)/(1-s*x);
 
-        flt_t eps_k0 = eps0 - Cv0*T0*(1+g) + 0.5*(K0/rho0)*(x*x)*f0;
-        flt_t pk0 = -Cv0*T0*G0*rho0 + 0.5*K0*x*pow(1+x,2)*(2*f0+x*f1);
-        flt_t pk0prime = -0.5*K0*pow(1+x,3)*rho0 * (2*(1+3*x)*f0 + 2*x*(2+3*x)*f1 + (x*x)*(1+x)*f2);
-        flt_t pk0second = 0.5*K0*pow(1+x,4)*(rho0*rho0)
-                            *(12*(1+2*x)*f0 + 6*(1+6*x+6*(x*x))*f1 + 6*x*(1+x)*(1+2*x)*f2 + pow(x*(1+x),2)*f3);
+        flt_t eps_k0 = eps0 - Cv0*T0*(1+g) + flt_t(0.5)*(K0/rho0)*(x*x)*f0;
+        flt_t pk0 = -Cv0*T0*G0*rho0 + (flt_t(0.5)*K0*x*(1+x)*(1+x)*(2*f0+x*f1));
+        flt_t pk0prime = -flt_t(0.5) * K0 * std::pow(1+x,flt_t(3))
+                * rho0 * (2 * (1+3*x) * f0 + 2*x*(2+3*x) * f1 + (x*x) * (1+x) * f2);
+        flt_t pk0second = flt_t(0.5) * K0 * std::pow(1+x,flt_t(4)) * (rho0*rho0)
+                * (12*(1+2*x)*f0 + 6*(1+6*x+6*(x*x)) * f1 + 6*x*(1+x)*(1+2*x) * f2
+                   + std::pow(x*(1+x),flt_t(2)) * f3);
 
         d.pmat[i] = pk0 + G0*rho0*(d.emat[i] - eps_k0);
-        d.cmat[i] = sqrt(G0*rho0*(d.pmat[i] - pk0) - pk0prime) / d.rho[i];
-
-        d.gmat[i] = 0.5/(pow(d.rho[i],3)*pow(d.cmat[i],2))*(pk0second+pow(G0*rho0,2)*(d.pmat[i]-pk0));
+        d.cmat[i] = std::sqrt(G0*rho0*(d.pmat[i] - pk0) - pk0prime) / d.rho[i];
+        d.gmat[i] = flt_t(0.5) / (std::pow(d.rho[i],flt_t(3)) * std::pow(d.cmat[i],flt_t(2)))
+                * (pk0second + std::pow(G0 * rho0,flt_t(2)) * (d.pmat[i]-pk0));
     });
 }
 
@@ -235,7 +242,7 @@ void init_test(Params& p, Data& d)
 
         Kokkos::parallel_for(Kokkos::RangePolicy<>(p.ideb, p.ifin + 1),
         KOKKOS_LAMBDA(const int i) {
-            d.x[i] = static_cast<flt_t>(i - p.nb_ghosts) / p.nb_cells;
+            d.x[i] = flt_t(i - p.nb_ghosts) / flt_t(p.nb_cells);
             if (d.x[i] < 0.5) {
                 d.rho[i] = 1.;
                 d.pmat[i] = 1.;
@@ -249,8 +256,8 @@ void init_test(Params& p, Data& d)
 
             const flt_t gamma = 1.4;
             d.emat[i] = d.Emat[i] = d.pmat[i] / ((gamma - 1) * d.rho[i]);
-            d.cmat[i] = sqrt(gamma * d.pmat[i] / d.rho[i]);
-            d.gmat[i] = 0.5 * (1 + gamma);
+            d.cmat[i] = std::sqrt(gamma * d.pmat[i] / d.rho[i]);
+            d.gmat[i] = flt_t(0.5) * (1 + gamma);
         });
 
         break;
@@ -262,7 +269,7 @@ void init_test(Params& p, Data& d)
 
         Kokkos::parallel_for(Kokkos::RangePolicy<>(p.ideb, p.ifin + 1),
         KOKKOS_LAMBDA(const int i) {
-            d.x[i] = static_cast<flt_t>(i - p.nb_ghosts) / p.nb_cells;
+            d.x[i] = flt_t(i - p.nb_ghosts) / flt_t(p.nb_cells);
             if (d.x[i] < 0.5) {
                 d.rho[i] = 1.42857142857e+4;
                 d.pmat[i] = 0.;
@@ -272,7 +279,7 @@ void init_test(Params& p, Data& d)
                 d.rho[i] =  10000.;
                 d.umat[i] = 250.;
                 d.emat[i] = 0.;
-                d.Emat[i] = d.emat[i] + 0.5 * pow(d.umat[i], 2);
+                d.Emat[i] = d.emat[i] + flt_t(0.5) * std::pow(d.umat[i], flt_t(2));
             }
         });
 
@@ -309,8 +316,8 @@ void first_order_euler_remap(const Params& p, Data& d, flt_t dt)
     Kokkos::parallel_for(Kokkos::RangePolicy<>(p.ideb, p.ifin + 1),
     KOKKOS_LAMBDA(const int i) {
         flt_t dx = d.X[i+1] - d.X[i];
-        flt_t L1 =  std::max(0., d.ustar[i]) * dt;
-        flt_t L3 = -std::min(0., d.ustar[i+1]) * dt;
+        flt_t L1 =  std::max(flt_t(0.), d.ustar[i]) * dt;
+        flt_t L3 = -std::min(flt_t(0.), d.ustar[i+1]) * dt;
         flt_t L2 = dx - L1 - L3;
 
         d.tmp_rho[i]  = (L1*d.rho[i-1]             + L2*d.rho[i]           + L3*d.rho[i+1]            ) / dx;
@@ -357,7 +364,7 @@ flt_t dtCFL(const Params& p, Data& d, flt_t dta)
         }
     }
     else {
-        return std::min(p.cfl * dt, 1.05 * dta);
+        return std::min(p.cfl * dt, flt_t(1.05) * dta);
     }
 }
 
@@ -378,7 +385,7 @@ void acoustic(const Params& p, Data& d)
 KOKKOS_INLINE_FUNCTION flt_t phi(flt_t r)
 {
     // Minmod
-    return std::max(0., std::min(1., r));
+    return std::max(flt_t(0.), std::min(flt_t(1.), r));
 }
 
 
@@ -395,10 +402,10 @@ void acoustic_GAD(const Params& p, Data& d, flt_t dt)
 
     Kokkos::parallel_for(Kokkos::RangePolicy<>(p.ideb, p.ifin + 1),
     KOKKOS_LAMBDA(const int i){
-        flt_t r_u_m = (d.ustar_1[i+1] - d.umat[i]) / (d.ustar_1[i] - d.umat[i-1] + 1e-6);
-        flt_t r_p_m = (d.pstar_1[i+1] - d.pmat[i]) / (d.pstar_1[i] - d.pmat[i-1] + 1e-6);
-        flt_t r_u_p = (d.umat[i-1] - d.ustar_1[i-1]) / (d.umat[i] - d.ustar_1[i] + 1e-6);
-        flt_t r_p_p = (d.pmat[i-1] - d.pstar_1[i-1]) / (d.pmat[i] - d.pstar_1[i] + 1e-6);
+        flt_t r_u_m = (d.ustar_1[i+1] - d.umat[i]) / (d.ustar_1[i] - d.umat[i-1] + flt_t(1e-6));
+        flt_t r_p_m = (d.pstar_1[i+1] - d.pmat[i]) / (d.pstar_1[i] - d.pmat[i-1] + flt_t(1e-6));
+        flt_t r_u_p = (d.umat[i-1] - d.ustar_1[i-1]) / (d.umat[i] - d.ustar_1[i] + flt_t(1e-6));
+        flt_t r_p_p = (d.pmat[i-1] - d.pstar_1[i-1]) / (d.pmat[i] - d.pstar_1[i] + flt_t(1e-6));
 //        if (std::isnan(r_u_m)) r_u_m = 1;
 //        if (std::isnan(r_p_m)) r_p_m = 1;
 //        if (std::isnan(r_u_p)) r_u_p = 1;
@@ -409,9 +416,9 @@ void acoustic_GAD(const Params& p, Data& d, flt_t dt)
         flt_t Dm = (dm_l + dm_r) / 2;
         flt_t theta = ((d.rho[i-1] * d.cmat[i-1]) + (d.rho[i] * d.cmat[i])) / 2 * (dt / Dm);
 
-        d.ustar[i] = d.ustar_1[i] + 0.5 * (1 - theta)
+        d.ustar[i] = d.ustar_1[i] + flt_t(0.5) * (1 - theta)
                 * (phi(r_u_p) * (d.umat[i] - d.ustar_1[i]) - phi(r_u_m) * (d.ustar_1[i] - d.umat[i-1]));
-        d.pstar[i] = d.pstar_1[i] + 0.5 * (1 - theta)
+        d.pstar[i] = d.pstar_1[i] + flt_t(0.5) * (1 - theta)
                 * (phi(r_p_p) * (d.pmat[i] - d.pstar_1[i]) - phi(r_p_m) * (d.pstar_1[i] - d.pmat[i-1]));
     });
 }
@@ -445,7 +452,7 @@ void cellUpdate(const Params& p, Data& d, flt_t dt)
         d.rho[i] = dm / (d.X[i+1] - d.X[i]);
         d.umat[i] += dt / dm * (d.pstar[i] - d.pstar[i+1]);
         d.Emat[i] += dt / dm * (d.pstar[i] * d.ustar[i] - d.pstar[i+1] * d.ustar[i+1]);
-        d.emat[i] = d.Emat[i] - 0.5 * std::pow(d.umat[i], 2);
+        d.emat[i] = d.Emat[i] - flt_t(0.5) * std::pow(d.umat[i], flt_t(2));
     });
 
     if (!p.euler_projection) {
@@ -580,15 +587,15 @@ bool parse_arguments(Params& p, int argc, char** argv)
             i++;
         }
         else if (strcmp(argv[i], "--time") == 0) {
-            p.max_time = strtod(argv[i+1], nullptr);
+            p.max_time = flt_t(strtod(argv[i+1], nullptr));
             i++;
         }
         else if (strcmp(argv[i], "--cfl") == 0) {
-            p.cfl = strtod(argv[i+1], nullptr);
+            p.cfl = flt_t(strtod(argv[i+1], nullptr));
             i++;
         }
         else if (strcmp(argv[i], "--dt") == 0) {
-            p.Dt = strtod(argv[i+1], nullptr);
+            p.Dt = flt_t(strtod(argv[i+1], nullptr));
             i++;
         }
         else if (strcmp(argv[i], "--write-output") == 0) {

@@ -37,6 +37,9 @@ endif()
 # Project Modules
 add_subdirectory(modules/kokkos)
 
+# Project Options
+option(USE_SINGLE_PRECISION "Use float instead of double" OFF)
+
 # Project Sources
 include_directories(${Kokkos_INCLUDE_DIRS_RET})
 add_subdirectory(src)
