@@ -15,8 +15,15 @@ if(Kokkos_ENABLE_HIP)
 endif()
 
 if(Kokkos_ENABLE_CUDA)
+    set(Kokkos_ENABLE_CUDA_CONSTEXPR ON)
+    set(Kokkos_ENABLE_CUDA_LAMBDA ON)
     set(Kokkos_ENABLE_LIBRT OFF)
     set(Kokkos_ENABLE_LIBDL OFF)
+endif()
+
+if(Kokkos_ENABLE_SIMD)
+    set(Kokkos_ENABLE_PRAGMA_IVDEP ON)
+#    set(Kokkos_ENABLE_AGGRESSIVE_VECTORIZATION ON)
 endif()
 
 # Project Modules
