@@ -23,7 +23,6 @@ if(Kokkos_ENABLE_CUDA)
 
     set(Kokkos_ENABLE_CUDA_CONSTEXPR ON)
     set(Kokkos_ENABLE_CUDA_LAMBDA ON)
-    set(Kokkos_ARCH_AMPERE80)
     set(Kokkos_ENABLE_LIBRT OFF)
     set(Kokkos_ENABLE_LIBDL OFF)
 endif()

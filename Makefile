@@ -35,7 +35,7 @@ FORCE:
 	@cd ./cmake-build-cuda && make $(make_args) && cd ..
 
 ./cmake-build-hip/src/armon_hip.exe: FORCE
-	@cd ./cmake-build-cuda && make $(make_args) && cd ..
+	@cd ./cmake-build-hip && make $(make_args) && cd ..
 
 ./cmake-build-openmp/src/armon_openmp.exe: FORCE
 	@cd ./cmake-build-openmp && make $(make_args) && cd ..
@@ -52,10 +52,10 @@ run-cuda: ./cmake-build-cuda/src/armon_cuda.exe
 
 build-hip:
 	@mkdir -p ./cmake-build-hip
-	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-hip  && cmake .. -DKokkos_ENABLE_HIP=ON $(_omp) $(_simd) $(_flt) && make clean $(make_args)
+	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-hip  && cmake .. -DCMAKE_CXX_COMPILER=hipcc -DKokkos_ENABLE_HIP=ON $(_omp) $(_simd) $(_flt) && make clean $(make_args)
 
 run-hip: ./cmake-build-hip/src/armon_hip.exe
-	cd $(RUN_DIR) && ../cmake-build-cuda/src/armon_hip.exe $(args)
+	cd $(RUN_DIR) && ../cmake-build-hip/src/armon_hip.exe $(args)
 
 build-omp:
 	@mkdir -p ./cmake-build-openmp

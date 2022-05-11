@@ -1,6 +1,8 @@
 
 if(Kokkos_ENABLE_CUDA)
     set(EXE_NAME "armon_cuda.exe")
+elseif(Kokkos_ENABLE_HIP)
+    set(EXE_NAME "armon_hip.exe")
 elseif(Kokkos_ENABLE_OPENMP)
     set(EXE_NAME "armon_openmp.exe")
 else()
