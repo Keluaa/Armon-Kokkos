@@ -22,7 +22,7 @@ else
 endif
 
 build_type ?= RELEASE
-make_args ?= -j4 --no-print-directory
+make_args ?= --no-print-directory
 
 RUN_DIR ?= ./data
 args ?=
@@ -38,41 +38,41 @@ $(RUN_DIR):
 	mkdir -p $(RUN_DIR)
 
 ./cmake-build-cuda/src/armon_cuda.exe: FORCE
-	@cd ./cmake-build-cuda && make $(make_args) && cd ..
+	@cd ./cmake-build-cuda && $(MAKE) $(make_args) && cd ..
 
 ./cmake-build-hip/src/armon_hip.exe: FORCE
-	@cd ./cmake-build-hip && make $(make_args) && cd ..
+	@cd ./cmake-build-hip && $(MAKE) $(make_args) && cd ..
 
 ./cmake-build-openmp/src/armon_openmp.exe: FORCE
-	@cd ./cmake-build-openmp && make $(make_args) && cd ..
+	@cd ./cmake-build-openmp && $(MAKE) $(make_args) && cd ..
 
 ./cmake-build-serial/src/armon_serial.exe: FORCE
-	@cd ./cmake-build-serial && make $(make_args) && cd ..
+	@cd ./cmake-build-serial && $(MAKE) $(make_args) && cd ..
 
 build-cuda:
 	@mkdir -p ./cmake-build-cuda
-	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-cuda && cmake .. -DKokkos_ENABLE_CUDA=ON $(_omp) $(_simd) $(_flt) && make clean $(make_args)
+	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-cuda && cmake .. -DKokkos_ENABLE_CUDA=ON $(_omp) $(_simd) $(_flt) && $(MAKE) $(make_args) clean
 
 run-cuda: ./cmake-build-cuda/src/armon_cuda.exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-cuda/src/armon_cuda.exe $(args_)
 
 build-hip:
 	@mkdir -p ./cmake-build-hip
-	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-hip  && cmake .. -DCMAKE_CXX_COMPILER=hipcc -DKokkos_ENABLE_HIP=ON $(_omp) $(_simd) $(_flt) && make clean $(make_args)
+	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-hip  && cmake .. -DCMAKE_CXX_COMPILER=hipcc -DKokkos_ENABLE_HIP=ON $(_omp) $(_simd) $(_flt) && $(MAKE) $(make_args) clean
 
 run-hip: ./cmake-build-hip/src/armon_hip.exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-hip/src/armon_hip.exe $(args_)
 
 build-omp:
 	@mkdir -p ./cmake-build-openmp
-	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-openmp && cmake .. -DKokkos_ENABLE_OPENMP=ON $(_simd) $(_flt) && make clean $(make_args)
+	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-openmp && cmake .. -DKokkos_ENABLE_OPENMP=ON $(_simd) $(_flt) && $(MAKE) $(make_args) clean
 
 run-omp: ./cmake-build-openmp/src/armon_openmp.exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-openmp/src/armon_openmp.exe $(args_)
 
 build-serial:
 	@mkdir -p ./cmake-build-serial
-	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-serial && cmake .. $(_flt) && make clean $(make_args)
+	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-serial && cmake .. $(_flt) && $(MAKE) $(make_args) clean
 
 run-serial: ./cmake-build-serial/src/armon_serial.exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-serial/src/armon_serial.exe $(args_)
