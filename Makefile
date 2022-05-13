@@ -21,7 +21,7 @@ else
 	_flt = -DUSE_SINGLE_PRECISION=OFF
 endif
 
-build_type ?= RELEASE
+build_type ?= Release
 make_args ?= --no-print-directory
 
 RUN_DIR ?= ./data
@@ -51,28 +51,28 @@ $(RUN_DIR):
 
 build-cuda:
 	@mkdir -p ./cmake-build-cuda
-	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-cuda && cmake .. -DKokkos_ENABLE_CUDA=ON $(_omp) $(_simd) $(_flt) && $(MAKE) $(make_args) clean
+	cd ./cmake-build-cuda && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DKokkos_ENABLE_CUDA=ON $(_omp) $(_simd) $(_flt) .. && $(MAKE) $(make_args) clean
 
 run-cuda: ./cmake-build-cuda/src/armon_cuda.exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-cuda/src/armon_cuda.exe $(args_)
 
 build-hip:
 	@mkdir -p ./cmake-build-hip
-	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-hip  && cmake .. -DCMAKE_CXX_COMPILER=hipcc -DKokkos_ENABLE_HIP=ON $(_omp) $(_simd) $(_flt) && $(MAKE) $(make_args) clean
+	cd ./cmake-build-hip  && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DCMAKE_CXX_COMPILER=hipcc -DKokkos_ENABLE_HIP=ON $(_omp) $(_simd) $(_flt) .. && $(MAKE) $(make_args) clean
 
 run-hip: ./cmake-build-hip/src/armon_hip.exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-hip/src/armon_hip.exe $(args_)
 
 build-omp:
 	@mkdir -p ./cmake-build-openmp
-	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-openmp && cmake .. -DKokkos_ENABLE_OPENMP=ON $(_simd) $(_flt) && $(MAKE) $(make_args) clean
+	cd ./cmake-build-openmp && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DKokkos_ENABLE_OPENMP=ON $(_simd) $(_flt) .. && $(MAKE) $(make_args) clean
 
 run-omp: ./cmake-build-openmp/src/armon_openmp.exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-openmp/src/armon_openmp.exe $(args_)
 
 build-serial:
 	@mkdir -p ./cmake-build-serial
-	CMAKE_BUILD_TYPE=$(build_type) cd ./cmake-build-serial && cmake .. $(_flt) && $(MAKE) $(make_args) clean
+	cd ./cmake-build-serial && cmake -DCMAKE_BUILD_TYPE=$(build_type) $(_flt) .. && $(MAKE) $(make_args) clean
 
 run-serial: ./cmake-build-serial/src/armon_serial.exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-serial/src/armon_serial.exe $(args_)
