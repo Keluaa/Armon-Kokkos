@@ -537,6 +537,127 @@ void write_output(const Params& p, const HostData& d)
 }
 
 
+#ifdef KOKKOS_ENABLE_CUDA
+
+template<typename Policy>
+std::tuple<dim3, dim3> get_block_and_grid_size(const Policy& policy)
+{
+    // See Kokkos_Cuda_Parallel.hpp : ParallelFor<FunctorType, Kokkos::RangePolicy<Traits...>, Kokkos::Cuda>::execute()
+    const typename Policy::index_type nb_work = policy.end() - policy.begin();
+
+    auto functor = KOKKOS_LAMBDA(const int i){};
+    using FunctorType = decltype(functor);
+    using LaunchBounds = typename Policy::launch_bounds;
+    using ParallelFor = Kokkos::Impl::ParallelFor<FunctorType, Policy>;
+
+    cudaFuncAttributes attr = Kokkos::Impl::CudaParallelLaunch<ParallelFor, LaunchBounds>::get_cuda_func_attributes();
+    const int block_size = Kokkos::Impl::cuda_get_opt_block_size<typename ParallelFor::functor_type, LaunchBounds>(policy.space().impl_internal_space_instance(), attr, functor, 1, 0, 0);
+
+    auto max_grid = Kokkos::Impl::CudaInternal::singleton().m_maxBlock;
+
+    dim3 block(1, block_size, 1);
+    dim3 grid(
+            std::min(
+                    typename Policy::index_type((nb_work + block.y - 1) / block.y),
+                    typename Policy::index_type(max_grid[0])),
+            1, 1);
+
+    return std::make_tuple(block, grid);
+}
+
+template<typename Policy>
+std::tuple<dim3, dim3> get_block_and_grid_size_reduction(const Policy& policy)
+{
+    // See Kokkos_Cuda_Parallel.hpp : ParallelReduce<FunctorType, Kokkos::RangePolicy<Traits...>, ReducerType, Kokkos::Cuda>::local_block_size()
+    const typename Policy::index_type nb_work = policy.end() - policy.begin();
+
+    auto functor = KOKKOS_LAMBDA(const int i, flt_t& reducer){};
+    using FunctorType = decltype(functor);
+    using ParallelReduce = Kokkos::Impl::ParallelReduce<FunctorType, Policy, flt_t, Kokkos::Cuda>;
+    using return_value_adapter = Kokkos::Impl::ParallelReduceReturnValue<void, flt_t, FunctorType>;
+
+    flt_t return_value{};
+    Kokkos::Impl::ParallelReduce<FunctorType, Policy, typename return_value_adapter::reducer_type>
+            reduction(functor, policy, return_value_adapter::return_value(return_value, functor));
+    const unsigned block_size = reduction.local_block_size(functor);
+
+    dim3 block(1, block_size, 1);
+    dim3 grid(std::min(int(block.y), int(nb_work)), 1, 1);
+
+    return std::make_tuple(block, grid);
+}
+
+#else
+#ifdef KOKKOS_ENABLE_HIP
+
+std::tuple<dim3, dim3> get_block_and_grid_size(const Policy& policy)
+{
+    // See Kokkos_HIP_Parallel_Range.hpp : ParallelFor<FunctorType, Kokkos::RangePolicy<Traits...>, Kokkos::Experimental::HIP>::execute()
+    const typename Policy::index_type nb_work = policy.end() - policy.begin();
+
+    auto functor = KOKKOS_LAMBDA(const int i){};
+    using FunctorType = decltype(functor);
+    using LaunchBounds = typename Policy::launch_bounds;
+    using ParallelFor = Kokkos::Impl::ParallelFor<FunctorType, Policy>;
+    using DriverType = ParallelFor<FunctorType, Policy, Kokkos::Experimental::HIP>;
+
+    const int block_size = Kokkos::Experimental::Impl::hip_get_preferred_blocksize<DriverType, LaunchBounds>();
+    const dim3 block(1, block_size, 1);
+    const dim3 grid(typename Policy::index_type((nb_work + block.y - 1) / block.y), 1, 1);
+
+    return std::make_tuple(block, grid);
+}
+
+template<typename Policy>
+std::tuple<dim3, dim3> get_block_and_grid_size_reduction(const Policy& policy)
+{
+    // See Kokkos_HIP_Parallel_Range.hpp : ParallelReduce<FunctorType, Kokkos::RangePolicy<Traits...>, ReducerType, Kokkos::Experimental::HIP>::local_block_size()
+    const typename Policy::index_type nb_work = policy.end() - policy.begin();
+
+    auto functor = KOKKOS_LAMBDA(const int i, flt_t& reducer){};
+    using FunctorType = decltype(functor);
+    using ParallelReduce = Kokkos::Impl::ParallelReduce<FunctorType, Policy, flt_t, Kokkos::Experimental::HIP>;
+    using return_value_adapter = Kokkos::Impl::ParallelReduceReturnValue<void, flt_t, FunctorType>;
+
+    flt_t return_value{};
+    Kokkos::Impl::ParallelReduce<FunctorType, Policy, typename return_value_adapter::reducer_type>
+            reduction(functor, policy, return_value_adapter::return_value(return_value, functor));
+    const unsigned block_size = reduction.local_block_size(functor);
+
+    dim3 block(1, block_size, 1);
+    dim3 grid(std::min(block.y, typename Policy::index_type((nb_work + block.y - 1) / block.y)), 1, 1);
+
+    return std::make_tuple(block, grid);
+}
+
+#else
+
+template<typename Policy>
+std::tuple<dim3, dim3> get_block_and_grid_size(const Policy& policy)
+{ return std::make_tuple(dim3(1, 1, 1), dim3(1, 1, 1)); }
+
+template<typename Policy>
+std::tuple<dim3, dim3> get_block_and_grid_size_reduction(const Policy& policy)
+{ return std::make_tuple(dim3(1, 1, 1), dim3(1, 1, 1)); }
+
+#endif // KOKKOS_ENABLE_HIP
+#endif // KOKKOS_ENABLE_CUDA
+
+
+void print_kernel_params(const Params& p)
+{
+    auto [block, grid] = get_block_and_grid_size(Kokkos::RangePolicy<>(p.ideb, p.ifin));
+    printf("Kernel launch parameters for 'parallel_for', with range [%d, %d]:\n", p.ideb, p.ifin);
+    printf(" - block dim: %d, %d, %d\n", block.x, block.y, block.z);
+    printf(" - grid dim:  %d, %d, %d\n", grid.x, grid.y, grid.z);
+
+    auto [block_r, grid_r] = get_block_and_grid_size_reduction(Kokkos::RangePolicy<>(p.ideb, p.ifin));
+    printf("Kernel launch parameters for 'parallel_reduce', with range [%d, %d]:\n", p.ideb, p.ifin);
+    printf(" - block dim: %d, %d, %d\n", block_r.x, block_r.y, block_r.z);
+    printf(" - grid dim:  %d, %d, %d\n", grid_r.x, grid_r.y, grid_r.z);
+}
+
+
 const char USAGE[] = R"(
  == Armon ==
 CFD 1D solver using the conservative Euler equations in the lagrangian description.
@@ -689,7 +810,10 @@ bool armon(int argc, char** argv)
     params.ideb = params.nb_ghosts;
     params.ifin = params.nb_ghosts + params.nb_cells;
 
-    if (params.verbose < 3) params.print();
+    if (params.verbose < 3) {
+        params.print();
+        print_kernel_params(params);
+    }
 
     Data data("Armon", params.nb_cells + params.nb_ghosts * 2);
     HostData host_data = data.as_mirror();
