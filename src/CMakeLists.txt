@@ -5,8 +5,6 @@ elseif(Kokkos_ENABLE_HIP)
     set(EXE_NAME "armon_hip.exe")
 elseif(Kokkos_ENABLE_OPENMP)
     set(EXE_NAME "armon_openmp.exe")
-    # Some functions used in the Kokkos OpenMP backend are marked as deprecated, this is to remove the warnings about them
-    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
 else()
     set(EXE_NAME "armon_serial.exe")
 endif()
