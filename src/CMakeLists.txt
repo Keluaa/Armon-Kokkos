@@ -11,6 +11,7 @@ endif()
 
 add_executable(${EXE_NAME} "armon.cpp")
 target_link_libraries(${EXE_NAME} PRIVATE Kokkos::kokkos)
+target_compile_options(${EXE_NAME} PRIVATE -ffast-math)
 
 if(USE_SINGLE_PRECISION)
     target_compile_definitions(${EXE_NAME} PRIVATE USE_SINGLE_PRECISION=1)
