@@ -508,6 +508,12 @@ double time_loop(const Params& p, Data& d)
         if (p.verbose <= 1) {
             printf("Cycle = %d, dt = %.3g, t = %.3g\n", cycles, dt, t);
         }
+
+        if (!std::isfinite(dt) || dt <= .0) {
+            printf("Error: dt has an invalid value: %f\n", dt);
+            Kokkos::finalize();
+            exit(1);
+        }
     }
 
     auto time_loop_end = std::chrono::steady_clock::now();
