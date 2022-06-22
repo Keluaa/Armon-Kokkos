@@ -16,9 +16,9 @@ endif()
 
 if(Kokkos_ENABLE_CUDA)
     execute_process(COMMAND hostname RESULT_VARIABLE HOSTNAME)
-    if(HOSTNAME EQUAL "login1")
+    if(HOSTNAME MATCHES "^login")
         # The GPU architecture will not be detected automatically, set it to AMPERE 80 by default
-        set(Kokkos_ARCH_AMPERE80 ON)  # A100 GPU
+        set(Kokkos_ARCH_AMPERE80 ON CACHE BOOL "Kokkos_ARCH_AMPERE80" FORCE)  # A100 GPU
     endif()
 
     set(Kokkos_ENABLE_CUDA_CONSTEXPR ON CACHE BOOL "Kokkos_ENABLE_CUDA_CONSTEXPR" FORCE)
