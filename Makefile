@@ -2,7 +2,7 @@
 use_omp ?= 1
 use_simd ?= 1
 use_single ?= 0
-compiler ?= gcc
+compiler ?=
 
 ifeq ($(use_omp), 1)
 	_omp = -DKokkos_ENABLE_OPENMP=ON
@@ -28,6 +28,8 @@ else ifeq ($(compiler), gcc)
 	comp = -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
 else ifeq ($(compiler), clang)
 	comp = -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+else ifeq ($(compiler),)
+$(info "Using default CMake compiler")
 else 
 $(error "Wrong compiler: " $(compiler))
 endif 
