@@ -40,6 +40,8 @@ make_args ?= --no-print-directory
 RUN_DIR ?= ./data
 args ?=
 
+hip_compiler ?= hipcc
+
 # Remove any potential quotes around the args
 args_ = $(subst $\",,$(args))
 
@@ -73,7 +75,7 @@ run-cuda: ./cmake-build-cuda/src/armon_cuda.exe $(RUN_DIR)
 build-hip:
 	@mkdir -p ./cmake-build-hip
 	rm -f ./cmake-build-hip/CMakeCache.txt
-	cd ./cmake-build-hip  && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DCMAKE_CXX_COMPILER=hipcc -DKokkos_ENABLE_HIP=ON $(_omp) $(_simd) $(_flt) .. && $(MAKE) $(make_args) clean
+	cd ./cmake-build-hip  && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DCMAKE_CXX_COMPILER=$(hip_compiler) -DKokkos_ENABLE_HIP=ON $(_omp) $(_simd) $(_flt) .. && $(MAKE) $(make_args) clean
 
 run-hip: ./cmake-build-hip/src/armon_hip.exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-hip/src/armon_hip.exe $(args_)

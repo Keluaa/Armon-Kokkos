@@ -599,6 +599,7 @@ std::tuple<dim3d, dim3d> get_block_and_grid_size_reduction(const Policy& policy)
 #else
 #ifdef KOKKOS_ENABLE_HIP
 
+template<typename Policy>
 std::tuple<dim3d, dim3d> get_block_and_grid_size(const Policy& policy)
 {
     // See Kokkos_HIP_Parallel_Range.hpp : ParallelFor<FunctorType, Kokkos::RangePolicy<Traits...>, Kokkos::Experimental::HIP>::execute()
@@ -608,9 +609,8 @@ std::tuple<dim3d, dim3d> get_block_and_grid_size(const Policy& policy)
     using FunctorType = decltype(functor);
     using LaunchBounds = typename Policy::launch_bounds;
     using ParallelFor = Kokkos::Impl::ParallelFor<FunctorType, Policy>;
-    using DriverType = ParallelFor<FunctorType, Policy, Kokkos::Experimental::HIP>;
 
-    const unsigned block_size = Kokkos::Experimental::Impl::hip_get_preferred_blocksize<DriverType, LaunchBounds>();
+    const unsigned block_size = Kokkos::Experimental::Impl::hip_get_preferred_blocksize<ParallelFor, LaunchBounds>();
     const dim3d block{1, block_size, 1};
     const dim3d grid{typename Policy::index_type((nb_work + block[1] - 1) / block[1]), 1, 1};
 
