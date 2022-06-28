@@ -143,7 +143,7 @@ struct Params
         }
         printf(" - riemann:    %s\n", "acoustic");
         printf(" - scheme:     %s\n", (scheme == Scheme::Godunov) ? "Godunov" : "GAD-minmod");
-        printf(" - domain:     %dx%d (%d ghosts)", nx, ny, nb_ghosts);
+        printf(" - domain:     %dx%d (%d ghosts)\n", nx, ny, nb_ghosts);
         printf(" - nb cells:   %g (%g total)\n", double(nx * ny), double(nb_cells));
         printf(" - CFL:        %g\n", cfl);
         printf(" - Dt init:    %g\n", Dt);
@@ -272,7 +272,10 @@ std::map<std::string, double> time_contribution;
 
 KOKKOS_INLINE_FUNCTION int index_T(const Params& p, const int i)
 {
-    return ((p.col_length * i) % (p.row_length * p.col_length - 1));
+    // 'i' is at max N*M, then N*N*M, or N³ for square domains, must be less than 2^31 in order to prevent integer
+    // overflow, so N < ∛(2^31)=1290, which is quite limiting.
+    // Therefore, we are forced to cast 'i' to a 64-bit integer for this calculation.
+    return static_cast<int>((static_cast<long long>(p.col_length * i)) % (p.row_length * p.col_length - 1));
 }
 
 
@@ -1184,18 +1187,18 @@ bool parse_arguments(Params& p, int argc, char** argv)
 
 bool check_parameters(Params& p)
 {
-    if (p.nx == 0 || p.ny == 0) {
-        fputs("One of the dimension of the domain is 0", stderr);
+    if (p.nx <= 0 || p.ny <= 0) {
+        fputs("One of the dimensions of the domain is 0 or negative\n", stderr);
         return false;
     }
 
     if (p.cst_dt && p.Dt == 0.) {
-        fputs("Constant time step is set ('--cst-dt 1') but the initial time step is 0", stderr);
+        fputs("Constant time step is set ('--cst-dt 1') but the initial time step is 0\n", stderr);
         return false;
     }
 
     if (p.write_output && p.output_file == nullptr) {
-        fputs("Write output is on but no output file was given", stderr);
+        fputs("Write output is on but no output file was given\n", stderr);
         return false;
     }
 
