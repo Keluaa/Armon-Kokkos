@@ -40,6 +40,7 @@ endif()
 #endif()
 
 # Project Modules
+#set(CMAKE_CXX_FLAGS -fPIC)
 add_subdirectory(modules/kokkos)
 
 # Project Options
