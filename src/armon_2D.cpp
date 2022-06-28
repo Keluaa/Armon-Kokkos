@@ -1025,7 +1025,7 @@ Parallelized using Kokkos
 
 Options:
     -h or --help            Prints this message and exit
-    -t <test>               Test case: 'Sod' or 'Bizarrium'
+    -t <test>               Test case: 'Sod', 'Sod_y', 'Sod_circ' or 'Bizarrium'
     -s <scheme>             Numeric scheme: 'Godunov' (first order) or 'GAD-minmod' (second order, minmod limiter)
     --cells Nx,Ny           Number of cells in the 2D mesh
     --cycle N               Maximum number of iterations
@@ -1054,6 +1054,12 @@ bool parse_arguments(Params& p, int argc, char** argv)
         if (strcmp(argv[i], "-t") == 0) {
             if (strcmp(argv[i+1], "Sod") == 0) {
                 p.test = Params::Test::Sod;
+            }
+            else if (strcmp(argv[i+1], "Sod_y") == 0) {
+                p.test = Params::Test::Sod_y;
+            }
+            else if (strcmp(argv[i+1], "Sod_circ") == 0) {
+                p.test = Params::Test::Sod_circ;
             }
             else if (strcmp(argv[i+1], "Bizarrium") == 0) {
                 p.test = Params::Test::Bizarrium;

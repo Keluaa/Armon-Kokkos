@@ -37,7 +37,7 @@ endif
 
 ifeq ($(dim), 1)
 	_dim =
-else ifeq($(dim), 2)
+else ifeq ($(dim), 2)
 	_dim = _2D
 else
 $(error "Wrong dimension: " $(dim))
