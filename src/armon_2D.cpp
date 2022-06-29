@@ -422,10 +422,13 @@ void init_test(Params& p, Data& d)
     });
 
     if (p.transpose_dims) {
-        d.y[0] = d.y[p.col_length];
-        d.y[p.nb_cells - 1] = d.y[p.nb_cells - p.col_length - 1];
-        d.domain_mask_T[0] = d.domain_mask[0];
-        d.domain_mask_T[p.nb_cells - 1] = d.domain_mask[p.nb_cells - 1];
+        Kokkos::parallel_for(1,
+        KOKKOS_LAMBDA(const int i) {
+            d.y[0] = d.y[p.col_length];
+            d.y[p.nb_cells - 1] = d.y[p.nb_cells - p.col_length - 1];
+            d.domain_mask_T[0] = d.domain_mask[0];
+            d.domain_mask_T[p.nb_cells - 1] = d.domain_mask[p.nb_cells - 1];
+        });
     }
 
     switch (p.test) {
