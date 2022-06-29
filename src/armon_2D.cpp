@@ -128,7 +128,7 @@ struct Params
 #ifdef KOKKOS_ENABLE_CUDA
         printf(" - use gpu:    %d\n", Kokkos::Cuda::impl_is_initialized());
 #elif defined(KOKKOS_ENABLE_HIP)
-        printf(" - use gpu:    %d\n", Kokkos::HIP::impl_is_initialized());
+        printf(" - use gpu:    %d\n", Kokkos::Experimental::HIP::impl_is_initialized());
 #else
         printf(" - use gpu:    %d\n", 0);
 #endif
