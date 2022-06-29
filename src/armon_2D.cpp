@@ -329,17 +329,14 @@ void bizarriumEOS(const Params& p, Data& d)
 }
 
 
-std::function<bool(flt_t, flt_t)> get_test_condition_lambda(const Params& p)
+KOKKOS_INLINE_FUNCTION bool domain_condition_test(const Params::Test test, flt_t x, flt_t y)
 {
-    switch (p.test) {
-    case Params::Test::Sod:       return KOKKOS_LAMBDA(flt_t x, flt_t y) { return x <= flt_t(0.5); };
-    case Params::Test::Sod_y:     return KOKKOS_LAMBDA(flt_t x, flt_t y) { return y <= flt_t(0.5); };
-    case Params::Test::Sod_circ:  return KOKKOS_LAMBDA(flt_t x, flt_t y) { return std::pow(x - flt_t(0.5), flt_t(2)) + std::pow(y - flt_t(0.5), flt_t(2)) <= flt_t(0.125); };
-    case Params::Test::Bizarrium: return KOKKOS_LAMBDA(flt_t x, flt_t y) { return x <= 0.5; };
-    default:
-        fputs("Wrong test", stderr);
-        Kokkos::finalize();
-        exit(1);
+    switch (test) {
+    case Params::Test::Bizarrium:
+    case Params::Test::Sod:      return x <= flt_t(0.5);
+    case Params::Test::Sod_y:    return y <= flt_t(0.5);
+    case Params::Test::Sod_circ: return std::pow(x - flt_t(0.5), flt_t(2)) + std::pow(y - flt_t(0.5), flt_t(2)) <= flt_t(0.125);
+    default:                     return false;
     }
 }
 
@@ -370,8 +367,6 @@ void init_test(Params& p, Data& d)
         break;
     }
 
-    auto cond = get_test_condition_lambda(p);
-
     Kokkos::parallel_for(Kokkos::RangePolicy<>(0, p.nb_cells),
     KOKKOS_LAMBDA(const int i) {
         int ix = (i % p.row_length) - p.nb_ghosts;
@@ -399,7 +394,7 @@ void init_test(Params& p, Data& d)
             }
         }
         else {
-            if (cond(x, y)) {
+            if (domain_condition_test(p.test, x, y)) {
                 d.rho[i]  = left_rho;
                 d.umat[i] = 0.;
                 d.vmat[i] = 0.;
