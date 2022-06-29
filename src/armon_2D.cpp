@@ -714,7 +714,7 @@ void update_EOS(const Params& p, Data& d)
 }
 
 
-std::tuple<int, view&, view&, view&> update_axis_parameters(Params& p, Data& d, Params::Axis axis)
+std::tuple<int, view*, view*, view*> update_axis_parameters(Params& p, Data& d, Params::Axis axis)
 {
     p.current_axis = axis;
 
@@ -728,7 +728,7 @@ std::tuple<int, view&, view&, view&> update_axis_parameters(Params& p, Data& d, 
 
         p.dx = 1. / p.nx;
 
-        return std::tie(last_i, d.x, d.umat, d.domain_mask);
+        return std::make_tuple(last_i, &d.x, &d.umat, &d.domain_mask);
 
     case Params::Axis::Y:
         if (p.transpose_dims) {
@@ -745,7 +745,7 @@ std::tuple<int, view&, view&, view&> update_axis_parameters(Params& p, Data& d, 
         p.dx = 1. / p.ny;
         last_i += p.row_length;
 
-        return std::tie(last_i, d.y, d.vmat, d.domain_mask_T);
+        return std::make_tuple(last_i, &d.y, &d.vmat, &d.domain_mask_T);
 
     default:
         fputs("Wrong axis", stderr);
@@ -846,7 +846,7 @@ double time_loop(Params& p, Data& d)
 
     auto time_loop_start = std::chrono::steady_clock::now();
 
-    auto&& [last_i, x, u, mask] = update_axis_parameters(p, d, p.current_axis);
+    auto [last_i, x, u, mask] = update_axis_parameters(p, d, p.current_axis);
 
     while (t < p.max_time && cycles < p.max_cycles) {
         TIC(); dt = dtCFL(p, d, dta);    TAC("dtCFL");
@@ -860,17 +860,17 @@ double time_loop(Params& p, Data& d)
         for (auto [axis, dt_factor] : split_axes(p, cycles)) {
             std::tie(last_i, x, u, mask) = update_axis_parameters(p, d, p.current_axis);
 
-            TIC(); boundaryConditions(p, d);                         TAC("boundaryConditions");
-            TIC(); numericalFluxes(p, d, dt * dt_factor, last_i, u); TAC("numericalFluxes");
-            TIC(); cellUpdate(p, d, dt * dt_factor, u, x, mask);     TAC("cellUpdate");
+            TIC(); boundaryConditions(p, d);                          TAC("boundaryConditions");
+            TIC(); numericalFluxes(p, d, dt * dt_factor, last_i, *u); TAC("numericalFluxes");
+            TIC(); cellUpdate(p, d, dt * dt_factor, *u, *x, *mask);   TAC("cellUpdate");
 
             if (p.euler_projection) {
-                TIC(); first_order_euler_remap(p, d, dt);            TAC("first_order_euler");
+                TIC(); first_order_euler_remap(p, d, dt);             TAC("first_order_euler");
                 if (p.transpose_dims)
                     transpose_parameters(p);
             }
 
-            TIC(); update_EOS(p, d);                                 TAC("update_EOS");
+            TIC(); update_EOS(p, d);                                  TAC("update_EOS");
         }
 
         dta = dt;
