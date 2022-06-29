@@ -39,12 +39,17 @@ endif()
 #    set(KOKKOS_ENABLE_PRAGMA_UNROLL ON)
 #endif()
 
-# Project Modules
-#set(CMAKE_CXX_FLAGS -fPIC)
-add_subdirectory(modules/kokkos)
 
 # Project Options
 option(USE_SINGLE_PRECISION "Use float instead of double" OFF)
+option(CREATE_COMPARISON_LIBS "Compile Kokkos with -fPIC and create shared libs to compare the output of this backend with Julia" OFF)
+
+if(CREATE_COMPARISON_LIBS)
+    set(CMAKE_CXX_FLAGS -fPIC)
+endif()
+
+# Project Modules
+add_subdirectory(modules/kokkos)
 
 # Project Sources
 include_directories(${Kokkos_INCLUDE_DIRS_RET})

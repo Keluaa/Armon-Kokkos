@@ -2,6 +2,8 @@
 <project version="4">
   <component name="CMakeSharedSettings">
     <configurations>
+      <configuration PROFILE_NAME="CompLib-Serial" ENABLED="true" CONFIG_NAME="RelWithDebInfo" GENERATION_OPTIONS="-G &quot;Unix Makefiles&quot; -DKokkos_ENABLE_OPENMP=OFF -DKokkos_ENABLE_SERIAL=ON -DCREATE_COMPARISON_LIBS=ON" />
+      <configuration PROFILE_NAME="CompLib-CUDA" ENABLED="true" CONFIG_NAME="RelWithDebInfo" TOOLCHAIN_NAME="LLVM" GENERATION_OPTIONS="-G &quot;Unix Makefiles&quot; -DKokkos_ENABLE_CUDA=ON -DKokkos_ENABLE_OPENMP=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCREATE_COMPARISON_LIBS=ON" />
       <configuration PROFILE_NAME="Serial-Debug" ENABLED="true" CONFIG_NAME="Debug" GENERATION_OPTIONS="-G &quot;Unix Makefiles&quot; -DKokkos_ENABLE_SERIAL=ON" />
       <configuration PROFILE_NAME="CUDA-Debug" ENABLED="true" CONFIG_NAME="Debug" TOOLCHAIN_NAME="LLVM" GENERATION_OPTIONS="-G &quot;Unix Makefiles&quot; -DKokkos_ENABLE_CUDA=ON -DKokkos_ENABLE_OPENMP=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc" />
       <configuration PROFILE_NAME="OpenMP-Debug" ENABLED="true" CONFIG_NAME="Debug" GENERATION_OPTIONS="-G &quot;Unix Makefiles&quot; -DKokkos_ENABLE_OPENMP=ON" />
