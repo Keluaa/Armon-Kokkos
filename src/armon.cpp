@@ -131,6 +131,27 @@ struct DataHolder
         , tmp_Erho(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
     { }
 
+    // Initialize all arrays to 0, preventing first-touch effects
+    [[maybe_unused]]
+    DataHolder(const std::string& label, int size, int zero_init)
+        : x(label, size)
+        , X(label, size)
+        , rho(label, size)
+        , umat(label, size)
+        , emat(label, size)
+        , Emat(label, size)
+        , pmat(label, size)
+        , cmat(label, size)
+        , gmat(label, size)
+        , ustar(label, size)
+        , pstar(label, size)
+        , ustar_1(label, size)
+        , pstar_1(label, size)
+        , tmp_rho(label, size)
+        , tmp_urho(label, size)
+        , tmp_Erho(label, size)
+    { }
+
     [[nodiscard]]
     DataHolder<typename view_t::HostMirror> as_mirror() const
     {
@@ -825,6 +846,10 @@ bool armon(int argc, char** argv)
     }
 
     Data data("Armon", params.nb_cells + params.nb_ghosts * 2);
+    
+    //puts("First-touch initialisation is off");
+    //Data data("Armon", params.nb_cells + params.nb_ghosts * 2, 0);
+
     HostData host_data = data.as_mirror();
 
     TIC(); init_test(params, data); TAC("init_test");
