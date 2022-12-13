@@ -37,8 +37,8 @@ struct Params
     } test = Test::Sod;
 
     enum class Scheme {
-        Godunov, GAD_minmod
-    } scheme = Scheme::GAD_minmod;
+        Godunov, GAD
+    } scheme = Scheme::GAD;
 
     enum class Riemann {
         Acoustic
@@ -107,7 +107,7 @@ struct DataHolder
 {
     view_t x, X;
     view_t rho, umat, emat, Emat, pmat, cmat, gmat, ustar, pstar, ustar_1, pstar_1;
-    view_t tmp_rho, tmp_urho, tmp_Erho;
+    view_t work_array_1, work_array_2, work_array_3;
 
     DataHolder() = default;
 
@@ -126,9 +126,9 @@ struct DataHolder
         , pstar(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
         , ustar_1(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
         , pstar_1(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , tmp_rho(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , tmp_urho(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , tmp_Erho(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
+        , work_array_1(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
+        , work_array_2(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
+        , work_array_3(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
     { }
 
     // Initialize all arrays to 0, preventing first-touch effects
@@ -147,9 +147,9 @@ struct DataHolder
         , pstar(label, size)
         , ustar_1(label, size)
         , pstar_1(label, size)
-        , tmp_rho(label, size)
-        , tmp_urho(label, size)
-        , tmp_Erho(label, size)
+        , work_array_1(label, size)
+        , work_array_2(label, size)
+        , work_array_3(label, size)
     { }
 
     [[nodiscard]]
@@ -169,9 +169,9 @@ struct DataHolder
         mirror.pstar = Kokkos::create_mirror_view(pstar);
         mirror.ustar_1 = Kokkos::create_mirror_view(ustar_1);
         mirror.pstar_1 = Kokkos::create_mirror_view(pstar_1);
-        mirror.tmp_rho = Kokkos::create_mirror_view(tmp_rho);
-        mirror.tmp_urho = Kokkos::create_mirror_view(tmp_urho);
-        mirror.tmp_Erho = Kokkos::create_mirror_view(tmp_Erho);
+        mirror.work_array_1 = Kokkos::create_mirror_view(work_array_1);
+        mirror.work_array_2 = Kokkos::create_mirror_view(work_array_2);
+        mirror.work_array_3 = Kokkos::create_mirror_view(work_array_3);
         return mirror;
     }
 
@@ -191,9 +191,9 @@ struct DataHolder
         Kokkos::deep_copy(mirror.pstar, pstar);
         Kokkos::deep_copy(mirror.ustar_1, ustar_1);
         Kokkos::deep_copy(mirror.pstar_1, pstar_1);
-        Kokkos::deep_copy(mirror.tmp_rho, tmp_rho);
-        Kokkos::deep_copy(mirror.tmp_urho, tmp_urho);
-        Kokkos::deep_copy(mirror.tmp_Erho, tmp_Erho);
+        Kokkos::deep_copy(mirror.work_array_1, work_array_1);
+        Kokkos::deep_copy(mirror.work_array_2, work_array_2);
+        Kokkos::deep_copy(mirror.work_array_3, work_array_3);
     }
 };
 
@@ -345,16 +345,16 @@ void first_order_euler_remap(const Params& p, Data& d, flt_t dt)
         flt_t L3 = -std::min(flt_t(0.), d.ustar[i+1]) * dt;
         flt_t L2 = dx - L1 - L3;
 
-        d.tmp_rho[i]  = (L1*d.rho[i-1]             + L2*d.rho[i]           + L3*d.rho[i+1]            ) / dx;
-        d.tmp_urho[i] = (L1*d.rho[i-1]*d.umat[i-1] + L2*d.rho[i]*d.umat[i] + L3*d.rho[i+1]*d.umat[i+1]) / dx;
-        d.tmp_Erho[i] = (L1*d.rho[i-1]*d.Emat[i-1] + L2*d.rho[i]*d.Emat[i] + L3*d.rho[i+1]*d.Emat[i+1]) / dx;
+        d.work_array_1[i] = (L1 * d.rho[i-1]               + L2 * d.rho[i]             + L3 * d.rho[i+1]              ) / dx;
+        d.work_array_2[i] = (L1 * d.rho[i-1] * d.umat[i-1] + L2 * d.rho[i] * d.umat[i] + L3 * d.rho[i+1] * d.umat[i+1]) / dx;
+        d.work_array_3[i] = (L1 * d.rho[i-1] * d.Emat[i-1] + L2 * d.rho[i] * d.Emat[i] + L3 * d.rho[i+1] * d.Emat[i+1]) / dx;
     });
 
     Kokkos::parallel_for(Kokkos::RangePolicy<>(p.ideb, p.ifin + 1),
     KOKKOS_LAMBDA(const int i) {
-        d.rho[i]  = d.tmp_rho[i];
-        d.umat[i] = d.tmp_urho[i] / d.tmp_rho[i];
-        d.Emat[i] = d.tmp_Erho[i] / d.tmp_rho[i];
+        d.rho[i]  = d.work_array_1[i];
+        d.umat[i] = d.work_array_2[i] / d.work_array_1[i];
+        d.Emat[i] = d.work_array_3[i] / d.work_array_1[i];
     });
 }
 
@@ -455,8 +455,8 @@ void numericalFluxes(const Params& p, Data& d, flt_t dt)
     case Params::Riemann::Acoustic:
     {
         switch (p.scheme) {
-        case Params::Scheme::Godunov:    acoustic(p, d); break;
-        case Params::Scheme::GAD_minmod: acoustic_GAD(p, d, dt); break;
+        case Params::Scheme::Godunov:    acoustic(p, d);         break;
+        case Params::Scheme::GAD:        acoustic_GAD(p, d, dt); break;
         }
         break;
     }
@@ -735,7 +735,7 @@ bool parse_arguments(Params& p, int argc, char** argv)
                 p.scheme = Params::Scheme::Godunov;
             }
             else if (strcmp(argv[i+1], "GAD-minmod") == 0) {
-                p.scheme = Params::Scheme::GAD_minmod;
+                p.scheme = Params::Scheme::GAD;
             }
             else {
                 printf("Wrong scheme: %s\n", argv[i+1]);

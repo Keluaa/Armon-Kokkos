@@ -1,48 +1,45 @@
 
 if(Kokkos_ENABLE_CUDA)
-    set(EXE_NAME "armon_cuda.exe")
-    set(EXE_NAME_2D "armon_cuda_2D.exe")
+    set(LIB_NAME "armon_cuda")
+    set(LIB_NAME_2D "armon_cuda_2D")
 elseif(Kokkos_ENABLE_HIP)
-    set(EXE_NAME "armon_hip.exe")
-    set(EXE_NAME_2D "armon_hip_2D.exe")
+    set(LIB_NAME "armon_hip.exe")
+    set(LIB_NAME_2D "armon_hip_2D")
 elseif(Kokkos_ENABLE_OPENMP)
-    set(EXE_NAME "armon_openmp.exe")
-    set(EXE_NAME_2D "armon_openmp_2D.exe")
+    set(LIB_NAME "armon_openmp")
+    set(LIB_NAME_2D "armon_openmp_2D")
 else()
-    set(EXE_NAME "armon_serial.exe")
-    set(EXE_NAME_2D "armon_serial_2D.exe")
+    set(LIB_NAME "armon_serial")
+    set(LIB_NAME_2D "armon_serial_2D")
 endif()
 
-add_executable(${EXE_NAME} "armon.cpp")
+set(LIB_NAME ${LIB_NAME} PARENT_SCOPE)
+set(LIB_NAME_2D ${LIB_NAME_2D} PARENT_SCOPE)
+
+set(EXE_NAME "${LIB_NAME}.exe")
+set(EXE_NAME_2D "${LIB_NAME_2D}.exe")
+
+# 1D executable
+
+add_executable(${EXE_NAME}
+        armon.cpp)
 target_link_libraries(${EXE_NAME} PRIVATE Kokkos::kokkos)
-target_compile_options(${EXE_NAME} PRIVATE -ffast-math)
+target_compile_options(${EXE_NAME} PRIVATE ${OPTIONS})
+target_compile_definitions(${EXE_NAME} PRIVATE USE_SINGLE_PRECISION=${PRECISION})
 
-add_executable(${EXE_NAME_2D} "armon_2D.cpp")
-target_link_libraries(${EXE_NAME_2D} PRIVATE Kokkos::kokkos)
-target_compile_options(${EXE_NAME_2D} PRIVATE -ffast-math)
+# 2D library & executable
 
-if(CREATE_COMPARISON_LIBS)
-    add_library(cmp_cpp_jl_1D SHARED "cmp_cpp_jl_1D.cpp")
-    target_link_libraries(cmp_cpp_jl_1D PRIVATE Kokkos::kokkos)
-    target_compile_options(cmp_cpp_jl_1D PRIVATE -ffast-math -fPIC)
+add_library(${LIB_NAME_2D}
+        armon_2D.cpp
+        parameters.cpp parameters.h
+        indexing.cpp indexing.h
+        data.h
+        armon_2D.h
+        kernel_info.cpp kernel_info.h)
+target_link_libraries(${LIB_NAME_2D} PRIVATE Kokkos::kokkos)
+target_compile_options(${LIB_NAME_2D} PRIVATE ${OPTIONS})
 
-    add_library(cmp_cpp_jl_2D SHARED "cmp_cpp_jl_2D.cpp")
-    target_link_libraries(cmp_cpp_jl_2D PRIVATE Kokkos::kokkos)
-    target_compile_options(cmp_cpp_jl_2D PRIVATE -ffast-math -fPIC)
-endif()
-
-if(USE_SINGLE_PRECISION)
-    target_compile_definitions(${EXE_NAME} PRIVATE USE_SINGLE_PRECISION=1)
-    target_compile_definitions(${EXE_NAME_2D} PRIVATE USE_SINGLE_PRECISION=1)
-    if(CREATE_COMPARISON_LIBS)
-        target_compile_definitions(cmp_cpp_jl_1D PRIVATE USE_SINGLE_PRECISION=1)
-        target_compile_definitions(cmp_cpp_jl_2D PRIVATE USE_SINGLE_PRECISION=1)
-    endif()
-else()
-    target_compile_definitions(${EXE_NAME} PRIVATE USE_SINGLE_PRECISION=0)
-    target_compile_definitions(${EXE_NAME_2D} PRIVATE USE_SINGLE_PRECISION=0)
-    if(CREATE_COMPARISON_LIBS)
-        target_compile_definitions(cmp_cpp_jl_1D PRIVATE USE_SINGLE_PRECISION=0)
-        target_compile_definitions(cmp_cpp_jl_2D PRIVATE USE_SINGLE_PRECISION=0)
-    endif()
-endif()
+add_executable(${EXE_NAME_2D}
+        main_2D.cpp)
+target_link_libraries(${EXE_NAME_2D} PRIVATE ${LIB_NAME_2D} PRIVATE Kokkos::kokkos)
+target_compile_definitions(${LIB_NAME_2D} PRIVATE USE_SINGLE_PRECISION=${PRECISION})
