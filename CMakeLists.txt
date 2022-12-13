@@ -9,9 +9,16 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Kokkos Modules
 set(Kokkos_ENABLE_HWLOC ON CACHE BOOL "Kokkos_ENABLE_HWLOC" FORCE)
+set(Kokkos_ENABLE_LIBRT OFF CACHE BOOL "Kokkos_ENABLE_LIBRT" FORCE)
+set(Kokkos_ENABLE_LIBDL OFF CACHE BOOL "Kokkos_ENABLE_LIBDL" FORCE)
 
 if(Kokkos_ENABLE_HIP)
     set(Kokkos_ARCH_VEGA908 ON CACHE BOOL "Kokkos_ARCH_VEGA908" FORCE) # Mi100 GPU
+    set(Kokkos_ARCH_VEGA90A ON CACHE BOOL "Kokkos_ARCH_VEGA90A" FORCE) # Mi250 GPU
+
+    if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(Kokkos_ENABLE_HIP_MULTIPLE_KERNEL_INSTANTIATIONS ON CACHE BOOL "Kokkos_ENABLE_HIP_MULTIPLE_KERNEL_INSTANTIATIONS" FORCE)
+    endif()
 endif()
 
 if(Kokkos_ENABLE_CUDA)
@@ -23,29 +30,34 @@ if(Kokkos_ENABLE_CUDA)
 
     set(Kokkos_ENABLE_CUDA_CONSTEXPR ON CACHE BOOL "Kokkos_ENABLE_CUDA_CONSTEXPR" FORCE)
     set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "Kokkos_ENABLE_CUDA_LAMBDA" FORCE)
-    set(Kokkos_ENABLE_LIBRT OFF CACHE BOOL "Kokkos_ENABLE_LIBRT" FORCE)
-    set(Kokkos_ENABLE_LIBDL OFF CACHE BOOL "Kokkos_ENABLE_LIBDL" FORCE)
 endif()
 
 if(Kokkos_ENABLE_OPENMP)
     # Some functions used in the Kokkos OpenMP backend are marked as deprecated, this is to remove the warnings about them
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
+#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
+
+    set(Kokkos_ENABLE_AGGRESSIVE_VECTORIZATION ON CACHE BOOL "Kokkos_ENABLE_AGGRESSIVE_VECTORIZATION" FORCE)
 endif()
 
-#if(Kokkos_ENABLE_SIMD)
-#    set(Kokkos_ENABLE_PRAGMA_SIMD ON)
-#    set(Kokkos_ENABLE_PRAGMA_IVDEP ON)
-#    set(Kokkos_ENABLE_AGGRESSIVE_VECTORIZATION ON)
-#    set(KOKKOS_ENABLE_PRAGMA_UNROLL ON)
-#endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT Kokkos_ENABLE_OPENMP AND NOT Kokkos_ENABLE_CUDA AND NOT Kokkos_ENABLE_HIP)
+    # Enable all debug options when running in serial mode only
+    set(Kokkos_ENABLE_DEBUG ON CACHE BOOL "Kokkos_ENABLE_DEBUG" FORCE)
+    set(Kokkos_ENABLE_DEBUG_BOUNDS_CHECK ON CACHE BOOL "Kokkos_ENABLE_DEBUG_BOUNDS_CHECK" FORCE)
+    # Disable fast math in order to catch NANs more easily
+    set(OPTIONS)
+else()
+    set(OPTIONS "-ffast-math")
+endif()
 
 
 # Project Options
 option(USE_SINGLE_PRECISION "Use float instead of double" OFF)
-option(CREATE_COMPARISON_LIBS "Compile Kokkos with -fPIC and create shared libs to compare the output of this backend with Julia" OFF)
 
-if(CREATE_COMPARISON_LIBS)
-    set(CMAKE_CXX_FLAGS -fPIC)
+if(USE_SINGLE_PRECISION)
+    set(PRECISION 1)
+else()
+    set(PRECISION 0)
 endif()
 
 # Project Modules
@@ -54,3 +66,4 @@ add_subdirectory(modules/kokkos)
 # Project Sources
 include_directories(${Kokkos_INCLUDE_DIRS_RET})
 add_subdirectory(src)
+add_subdirectory(tests)
