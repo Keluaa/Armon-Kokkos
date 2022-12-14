@@ -9,15 +9,17 @@
 
 using view = Kokkos::View<flt_t*>;
 using host_view = view::HostMirror;
+using mask_view = Kokkos::View<bool*>;
+using host_mask_view = mask_view::HostMirror;
 
 
-template<typename view_t>
+template<typename view_t, typename mask_view_t>
 struct DataHolder
 {
     view_t x, y;
     view_t rho, umat, vmat, Emat, pmat, cmat, gmat, ustar, pstar;
     view_t work_array_1, work_array_2, work_array_3, work_array_4;
-    view_t domain_mask;
+    mask_view_t domain_mask;
 
     DataHolder() = default;
 
@@ -25,19 +27,19 @@ struct DataHolder
     DataHolder(const std::string& label, int size);
 
     [[nodiscard]]
-    DataHolder<typename view_t::HostMirror> as_mirror() const;
+    DataHolder<typename view_t::HostMirror, typename mask_view_t::HostMirror> as_mirror() const;
 
     template<typename mirror_view_t>
-    void deep_copy_to_mirror(DataHolder<mirror_view_t>& mirror) const;
+    void deep_copy_to_mirror(DataHolder<mirror_view_t, host_mask_view>& mirror) const;
 };
 
 
-using Data = DataHolder<view>;
-using HostData = DataHolder<host_view>;
+using Data = DataHolder<view, mask_view>;
+using HostData = DataHolder<host_view, host_mask_view>;
 
 
-template<typename view_t>
-DataHolder<view_t>::DataHolder(const std::string &label, int size)
+template<typename view_t, typename mask_view_t>
+DataHolder<view_t, mask_view_t>::DataHolder(const std::string &label, int size)
         : x(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
         , y(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
         , rho(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
@@ -57,9 +59,10 @@ DataHolder<view_t>::DataHolder(const std::string &label, int size)
 { }
 
 
-template<typename view_t>
-DataHolder<typename view_t::HostMirror> DataHolder<view_t>::as_mirror() const {
-    DataHolder<typename view_t::HostMirror> mirror;
+template<typename view_t, typename mask_view_t>
+DataHolder<typename view_t::HostMirror, typename mask_view_t::HostMirror>
+DataHolder<view_t, mask_view_t>::as_mirror() const {
+    DataHolder<typename view_t::HostMirror, typename mask_view_t::HostMirror> mirror;
     mirror.x = Kokkos::create_mirror_view(x);
     mirror.y = Kokkos::create_mirror_view(y);
     mirror.rho = Kokkos::create_mirror_view(rho);
@@ -80,9 +83,9 @@ DataHolder<typename view_t::HostMirror> DataHolder<view_t>::as_mirror() const {
 }
 
 
-template<typename view_t>
+template<typename view_t, typename mask_view_t>
 template<typename mirror_view_t>
-void DataHolder<view_t>::deep_copy_to_mirror(DataHolder<mirror_view_t> &mirror) const {
+void DataHolder<view_t, mask_view_t>::deep_copy_to_mirror(DataHolder<mirror_view_t, host_mask_view> &mirror) const {
     Kokkos::deep_copy(mirror.x, x);
     Kokkos::deep_copy(mirror.y, y);
     Kokkos::deep_copy(mirror.rho, rho);
