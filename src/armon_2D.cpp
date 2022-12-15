@@ -28,10 +28,12 @@ void acoustic(const Params& p, Data& d, const view& u)
 {
     const int s = p.s;
     Kokkos::parallel_for(iter(real_domain_fluxes(p)),
-    KOKKOS_LAMBDA(const int i){
-        std::tie(d.ustar[i], d.pstar[i]) = acoustic_Godunov(
+    KOKKOS_LAMBDA(const int i) {
+        auto [ustar_i, pstar_i] = acoustic_Godunov(
             d.rho[i], d.rho[i-s], d.cmat[i], d.cmat[i-s],
                 u[i],     u[i-s], d.pmat[i], d.pmat[i-s]);
+	d.ustar[i] = ustar_i;
+	d.pstar[i] = pstar_i;
     });
 }
 
@@ -408,7 +410,7 @@ void advection_first_order(const Params& p, Data& d, flt_t dt,
 }
 
 
-flt_t slope_minmod(flt_t u_im, flt_t u_i, flt_t u_ip, flt_t r_m, flt_t r_p)
+KOKKOS_INLINE_FUNCTION flt_t slope_minmod(flt_t u_im, flt_t u_i, flt_t u_ip, flt_t r_m, flt_t r_p)
 {
     flt_t D_u_p = r_p * (u_ip - u_i );
     flt_t D_u_m = r_m * (u_i  - u_im);
@@ -445,16 +447,16 @@ void advection_second_order(const Params& p, Data& d, flt_t dt,
         flt_t r_m = (2 * Dx_l) / (Dx_l + Dx_lm);
         flt_t r_p = (2 * Dx_l) / (Dx_l + Dx_lp);
 
-        flt_t slope_ρ  = slope_minmod(d.rho[i-s]              , d.rho[i]            , d.rho[i+s]              , r_m, r_p);
-        flt_t slope_uρ = slope_minmod(d.rho[i-s] * d.umat[i-s], d.rho[i] * d.umat[i], d.rho[i+s] * d.umat[i+s], r_m, r_p);
-        flt_t slope_vρ = slope_minmod(d.rho[i-s] * d.vmat[i-s], d.rho[i] * d.vmat[i], d.rho[i+s] * d.vmat[i+s], r_m, r_p);
-        flt_t slope_Eρ = slope_minmod(d.rho[i-s] * d.Emat[i-s], d.rho[i] * d.Emat[i], d.rho[i+s] * d.Emat[i+s], r_m, r_p);
+        flt_t slope_r  = slope_minmod(d.rho[i-s]              , d.rho[i]            , d.rho[i+s]              , r_m, r_p);
+        flt_t slope_ur = slope_minmod(d.rho[i-s] * d.umat[i-s], d.rho[i] * d.umat[i], d.rho[i+s] * d.umat[i+s], r_m, r_p);
+        flt_t slope_vr = slope_minmod(d.rho[i-s] * d.vmat[i-s], d.rho[i] * d.vmat[i], d.rho[i+s] * d.vmat[i+s], r_m, r_p);
+        flt_t slope_Er = slope_minmod(d.rho[i-s] * d.Emat[i-s], d.rho[i] * d.Emat[i], d.rho[i+s] * d.Emat[i+s], r_m, r_p);
 
         flt_t length_factor = Dx / (2 * Dx_l) * mask;
-        advection_rho[idx]  = disp * (d.rho[i]             - slope_ρ  * length_factor);
-        advection_urho[idx] = disp * (d.rho[i] * d.umat[i] - slope_uρ * length_factor);
-        advection_vrho[idx] = disp * (d.rho[i] * d.vmat[i] - slope_vρ * length_factor);
-        advection_Erho[idx] = disp * (d.rho[i] * d.Emat[i] - slope_Eρ * length_factor);
+        advection_rho[idx]  = disp * (d.rho[i]             - slope_r  * length_factor);
+        advection_urho[idx] = disp * (d.rho[i] * d.umat[i] - slope_ur * length_factor);
+        advection_vrho[idx] = disp * (d.rho[i] * d.vmat[i] - slope_vr * length_factor);
+        advection_Erho[idx] = disp * (d.rho[i] * d.Emat[i] - slope_Er * length_factor);
     });
 }
 
