@@ -29,8 +29,8 @@ struct DataHolder
     [[nodiscard]]
     DataHolder<typename view_t::HostMirror, typename mask_view_t::HostMirror> as_mirror() const;
 
-    template<typename mirror_view_t>
-    void deep_copy_to_mirror(DataHolder<mirror_view_t, host_mask_view>& mirror) const;
+    template<typename mirror_view_t, typename mirror_mask_view_t>
+    void deep_copy_to_mirror(DataHolder<mirror_view_t, mirror_mask_view_t>& mirror) const;
 };
 
 
@@ -84,8 +84,8 @@ DataHolder<view_t, mask_view_t>::as_mirror() const {
 
 
 template<typename view_t, typename mask_view_t>
-template<typename mirror_view_t>
-void DataHolder<view_t, mask_view_t>::deep_copy_to_mirror(DataHolder<mirror_view_t, host_mask_view> &mirror) const {
+template<typename mirror_view_t, typename mirror_mask_view_t>
+void DataHolder<view_t, mask_view_t>::deep_copy_to_mirror(DataHolder<mirror_view_t, mirror_mask_view_t> &mirror) const {
     Kokkos::deep_copy(mirror.x, x);
     Kokkos::deep_copy(mirror.y, y);
     Kokkos::deep_copy(mirror.rho, rho);
