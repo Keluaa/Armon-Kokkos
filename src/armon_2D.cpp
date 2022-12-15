@@ -634,7 +634,7 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d)
     double loop_time = std::chrono::duration<double>(time_loop_end - time_loop_start).count();
     double grind_time = loop_time / (static_cast<double>(cycles) * p.nx * p.ny) * 1e6;
 
-    if (p.verbose < 3) {
+    if (p.verbose < 4) {
         printf("\n");
         printf("Time:       %.4g seconds\n", loop_time);
         printf("Grind time: %.4g µs/cell/cycle\n", grind_time);

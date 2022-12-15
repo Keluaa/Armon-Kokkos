@@ -18,7 +18,7 @@ Options:
     -s <scheme>             Numeric scheme: 'Godunov' (first order) or 'GAD' (second order)
     --limiter <limiter>     Limiter for the second order scheme: 'None', 'Minmod' (default), 'Superbee'
     --cells Nx,Ny           Number of cells in the 2D mesh
-    --nghosts G             Number of ghost cells around the 2D domain
+    --nghost G              Number of ghost cells around the 2D domain
     --cycle N               Maximum number of iterations
     --riemann <solver>      Riemann solver: 'acoustic' only
     --projection <scheme>   Projection scheme: 'none' (lagrangian mode), 'euler' (1st order), 'euler_2nd' (2nd order)
@@ -97,7 +97,7 @@ bool parse_arguments(Params& p, int argc, char** argv)
             p.ny = (int) strtol(comma_pos+1, nullptr, 10);
             i++;
         }
-        else if (strcmp(argv[i], "--nghosts") == 0) {
+        else if (strcmp(argv[i], "--nghost") == 0) {
             p.nb_ghosts = (int) strtol(argv[i+1], nullptr, 10);
             i++;
         }
