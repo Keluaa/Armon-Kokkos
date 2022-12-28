@@ -14,6 +14,15 @@
 #include <cfenv>
 
 
+std::unique_ptr<Kokkos::ScopeGuard> global_guard = nullptr;
+void init_kokkos()
+{
+    if (global_guard == nullptr) {
+        global_guard = std::make_unique<Kokkos::ScopeGuard>();
+    }
+}
+
+
 template<>
 struct doctest::StringMaker<std::tuple<int, int>>
 {
@@ -25,7 +34,8 @@ struct doctest::StringMaker<std::tuple<int, int>>
 };
 
 
-TEST_CASE("indexing") {
+Params get_default_params()
+{
     Params p;
 
     p.test = Test::Sod;
@@ -33,7 +43,7 @@ TEST_CASE("indexing") {
     p.limiter = Limiter::Minmod;
     p.projection = Projection::Euler_2nd;
     p.axis_splitting = AxisSplitting::Sequential;
-    p.single_comm_per_axis_pass = true;
+    p.single_comm_per_axis_pass = false;
 
     p.max_cycles = 100;
     p.verbose = 1;
@@ -42,6 +52,13 @@ TEST_CASE("indexing") {
     p.ny = 5;
     p.nb_ghosts = 5;
 
+    return p;
+}
+
+
+TEST_CASE("indexing") {
+    Params p = get_default_params();
+    p.single_comm_per_axis_pass = true;
     p.init_indexing();
 
     SUBCASE("Domains") {
@@ -56,6 +73,18 @@ TEST_CASE("indexing") {
         CHECK_EQ(index_1D(p, 0, -1), 445);
         CHECK_EQ(index_1D(p, p.nx, 0), 655);
         CHECK_EQ(index_1D(p, 0, p.ny), 1105);
+    }
+}
+
+
+TEST_CASE("Memory alignment") {
+    init_kokkos();
+    Params p = get_default_params();
+    p.init_indexing();
+    HostData data(p.nb_cells);
+    for (auto& var : data.vars_array()) {
+        auto ptr = reinterpret_cast<intptr_t>(var->data());
+        CHECK_EQ(ptr % 64, 0);
     }
 }
 
@@ -104,6 +133,7 @@ bool check_if_ref_file_exists(const std::string& path)
 
 
 TEST_CASE("NaNs check") {
+    init_kokkos();
     feenableexcept(FE_INVALID);
     for (Test test_case : {Test::Sod, Test::Sod_y, Test::Sod_circ, Test::Bizarrium}) {
         Params ref_params = get_reference_params(test_case);
@@ -120,18 +150,21 @@ TEST_SUITE("Comparison with reference") {
     std::string ref_path_sod = get_reference_data_path(Test::Sod);
     bool sod_missing = check_if_ref_file_exists(ref_path_sod);
     TEST_CASE("Sod" * doctest::skip(sod_missing)) {
+        init_kokkos();
         run_comparison(Test::Sod, ref_path_sod);
     }
 
     std::string ref_path_sod_y = get_reference_data_path(Test::Sod_y);
     bool sod_y_missing = check_if_ref_file_exists(ref_path_sod_y);
     TEST_CASE("Sod_y" * doctest::skip(sod_y_missing)) {
+        init_kokkos();
         run_comparison(Test::Sod_y, ref_path_sod_y);
     }
 
     std::string ref_path_sod_circ = get_reference_data_path(Test::Sod_circ);
     bool sod_circ_missing = check_if_ref_file_exists(ref_path_sod_circ);
     TEST_CASE("Sod_circ" * doctest::skip(sod_circ_missing)) {
+        init_kokkos();
         // TODO: diverges from the correct solution when the wave reaches the borders (around cycle 16). NaNs occurs after.
         run_comparison(Test::Sod_circ, ref_path_sod_circ);
     }
@@ -139,6 +172,7 @@ TEST_SUITE("Comparison with reference") {
     std::string ref_path_bizarrium = get_reference_data_path(Test::Bizarrium);
     bool bizarrium_missing = check_if_ref_file_exists(ref_path_bizarrium);
     TEST_CASE("Bizarrium" * doctest::skip(bizarrium_missing)) {
+        init_kokkos();
         run_comparison(Test::Bizarrium, ref_path_bizarrium);
     }
 }
