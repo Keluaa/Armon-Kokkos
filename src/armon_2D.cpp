@@ -346,12 +346,17 @@ void boundaryConditions(const Params& p, Data& d, Side side)
         int i = idx * stride + i_start;
         int ip = i + disp;
 
-        d.rho[i]  = d.rho[ip];
-        d.umat[i] = d.umat[ip] * u_factor;
-        d.vmat[i] = d.vmat[ip] * v_factor;
-        d.pmat[i] = d.pmat[ip];
-        d.cmat[i] = d.cmat[ip];
-        d.gmat[i] = d.gmat[ip];
+        for (int w = 0; w < p.stencil_width; w++) {
+            d.rho[i]  = d.rho[ip];
+            d.umat[i] = d.umat[ip] * u_factor;
+            d.vmat[i] = d.vmat[ip] * v_factor;
+            d.pmat[i] = d.pmat[ip];
+            d.cmat[i] = d.cmat[ip];
+            d.gmat[i] = d.gmat[ip];
+
+            i  -= disp;
+            ip -= disp;
+        }
     });
 }
 
@@ -595,6 +600,8 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd)
     flt_t t = 0., prev_dt = 0., next_dt = 0.;
 
     auto time_loop_start = std::chrono::steady_clock::now();
+
+    p.update_axis(Axis::X);
 
     update_EOS(p, d);  // Finalize the initialisation by calling the EOS
 

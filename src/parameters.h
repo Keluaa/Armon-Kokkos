@@ -72,6 +72,7 @@ struct Params
     flt_t dx = 0;
     flt_t cfl = 0.6;
     flt_t Dt = 0.0;
+    int stencil_width = 3;
     bool cst_dt = false;
     bool single_comm_per_axis_pass = false;
 

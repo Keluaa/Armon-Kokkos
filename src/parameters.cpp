@@ -36,6 +36,15 @@ void Params::init_indexing() {
         std::cerr << "WARNING: There is not enough ghost cells for the given parameters. Expected at least "
             << min_ghosts << ", got " << nb_ghosts << "\n";
     }
+    if (stencil_width < min_ghosts) {
+        std::cerr << "WARNING: The stencil width given does not cover the estimated width. Expected at least "
+            << min_ghosts << ", got " << stencil_width << "\n";
+    }
+    if (stencil_width > nb_ghosts) {
+        std::cerr << "ERROR: The stencil width cannot be bigger than the number of ghost cells: "
+            << stencil_width << " > " << nb_ghosts << "\n";
+        exit(1);
+    }
 
     update_axis(current_axis);
 }
@@ -79,6 +88,7 @@ void Params::print() const
     printf(" - CFL:        %g\n", cfl);
     printf(" - Dt init:    %g\n", Dt);
     printf(" - cst dt:     %d\n", cst_dt);
+    printf(" - stencil width: %d\n", stencil_width);
     printf(" - projection: ");
     switch (projection) {
     case Projection::None:      printf("None\n");             break;
