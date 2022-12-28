@@ -34,6 +34,7 @@ Options:
                             'Strang' (XYX with dt/2 for X, then YXY with dt/2 for Y, repeat)
     --single-comm 0-1       Simulates the need to compute more cells than needed to have only a single communication
                             phase if this was a distributed solver.
+    --compare 0-1           Compare each step of the solver with some reference data.
     --verbose 0-3           Verbosity (0: high, 3: low)
 )";
 
@@ -188,6 +189,10 @@ bool parse_arguments(Params& p, int argc, char** argv)
         }
         else if (strcmp(argv[i], "--single-comm") == 0) {
             p.single_comm_per_axis_pass = strtol(argv[i+1], nullptr, 2);
+            i++;
+        }
+        else if (strcmp(argv[i], "--compare") == 0) {
+            p.compare = strtol(argv[i+1], nullptr, 2);
             i++;
         }
         else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {

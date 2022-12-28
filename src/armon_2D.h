@@ -70,9 +70,7 @@ void projection_remap(const Params& p, Data& d, flt_t dt);
 
 flt_t dtCFL(const Params& p, Data& d, flt_t dta);
 
-void write_output(const Params& p, const HostData& d);
-
-std::tuple<double, flt_t, int> time_loop(Params& p, Data& d);
+std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd);
 
 bool armon(Params& params);
 

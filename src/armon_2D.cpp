@@ -1,6 +1,8 @@
 
 #include "armon_2D.h"
 
+#include "io.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <chrono>
@@ -278,10 +280,10 @@ void init_test(Params& p, Data& d)
             d.domain_mask[i] = (
                    ((-r <= ix) && (ix < p.nx+r) && (-r <= iy) && (iy < p.ny+r))  // Include as well a ring of ghost cells...
                 && (( 0 <= ix) && (ix < p.nx)   || (0  <= iy) && (iy < p.ny)  )  // ...while excluding the corners of the subdomain
-            ) ? 1 : 0;
+            );
         }
         else {
-            d.domain_mask[i] = (0 <= ix && ix < p.nx && 0 <= iy && iy < p.ny) ? 1 : 0;
+            d.domain_mask[i] = (0 <= ix && ix < p.nx && 0 <= iy && iy < p.ny);
         }
 
         d.pmat[i] = 0;
@@ -515,37 +517,45 @@ flt_t dtCFL(const Params& p, Data& d, flt_t dta)
 }
 
 
-void write_output(const Params& p, const HostData& d)
+bool step_checkpoint(const Params& p, const Data& d, HostData& hd, const char* step_label, int cycle, const char* axis)
 {
-    FILE* file = fopen(p.output_file, "w");
+    if (!p.compare) return false;
 
-    int j_deb =    0 + (p.write_ghosts ? -p.nb_ghosts : 0);
-    int j_fin = p.ny + (p.write_ghosts ? +p.nb_ghosts : 0);
-    int i_deb =    0 + (p.write_ghosts ? -p.nb_ghosts : 0);
-    int i_fin = p.nx + (p.write_ghosts ? +p.nb_ghosts : 0);
+    d.deep_copy_to_mirror(hd);
 
-    const std::array vars = {&d.x, &d.y, &d.rho, &d.umat, &d.vmat, &d.pmat};
+    char buf[100];
+    snprintf(buf, 100, "_%03d_%s", cycle + 1, step_label);
+    std::string step_file_name = std::string(p.output_file) + buf + (std::strlen(axis) > 0 ? "_" : "") + axis + "_0x0";
 
-    for (int j = j_deb; j < j_fin; j++) {
-        for (int i = i_deb; i < i_fin; i++) {
-            int idx = index_1D(p, i, j);
-
-            auto it = vars.cbegin();
-            fprintf(file, "%12.9f", (*it)->operator[](idx));
-            for (it++; it != vars.cend(); it++) {
-                fprintf(file, ", %12.9f", (*it)->operator[](idx));
-            }
-
-            fprintf(file, "\n");
-        }
+    bool is_different;
+    try {
+        is_different = compare_with_file(p, hd, step_file_name);
+    } catch (std::exception& e) {
+        std::cerr << "Error while comparing with file '" << step_file_name << "': " << e.what() << std::endl;
+        is_different = true;
     }
 
-    fclose(file);
+    if (is_different) {
+        std::string diff_file_name = step_file_name + "_diff";
+        write_output(p, hd, diff_file_name.c_str());
+        printf("Difference file written to %s\n", diff_file_name.c_str());
+    }
 
-    if (p.verbose < 2) {
-        printf("Wrote to file: %s\n", p.output_file);
+    return is_different;
+}
+
+
+bool step_checkpoint(const Params& p, const Data& d, HostData& hd, const char* step_label, int cycle, Axis axis)
+{
+    switch (axis) {
+    case Axis::X: return step_checkpoint(p, d, hd, step_label, cycle, "X");
+    case Axis::Y: return step_checkpoint(p, d, hd, step_label, cycle, "Y");
+    default:      return false;
     }
 }
+
+
+#define CHECK_STEP(label) if (step_checkpoint(p, d, hd, label, cycles, axis)) goto end_loop
 
 
 std::tuple<flt_t, flt_t> conservation_vars(const Params& p, Data& d)
@@ -579,7 +589,7 @@ std::tuple<flt_t, flt_t> conservation_vars(const Params& p, Data& d)
 }
 
 
-std::tuple<double, flt_t, int> time_loop(Params& p, Data& d)
+std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd)
 {
     int cycles = 0;
     flt_t t = 0., prev_dt = 0., next_dt = 0.;
@@ -609,11 +619,11 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d)
         for (auto [axis, dt_factor] : p.split_axes(cycles)) {
             p.update_axis(axis);
 
-            TIC(); update_EOS(p, d);                            TAC("update_EOS");
-            TIC(); boundaryConditions(p, d);                    TAC("boundaryConditions");
-            TIC(); numericalFluxes(p, d, prev_dt * dt_factor);  TAC("numericalFluxes");
-            TIC(); cellUpdate(p, d, prev_dt * dt_factor);       TAC("cellUpdate");
-            TIC(); projection_remap(p, d, prev_dt * dt_factor); TAC("euler_proj");
+            TIC(); update_EOS(p, d);                            TAC("update_EOS");         CHECK_STEP("update_EOS");
+            TIC(); boundaryConditions(p, d);                    TAC("boundaryConditions"); CHECK_STEP("boundaryConditions");
+            TIC(); numericalFluxes(p, d, prev_dt * dt_factor);  TAC("numericalFluxes");    CHECK_STEP("numericalFluxes");
+            TIC(); cellUpdate(p, d, prev_dt * dt_factor);       TAC("cellUpdate");         CHECK_STEP("cellUpdate");
+            TIC(); projection_remap(p, d, prev_dt * dt_factor); TAC("euler_proj");         CHECK_STEP("projection_remap");
         }
 
         if (p.verbose <= 1) {
@@ -628,6 +638,8 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d)
         prev_dt = next_dt;
         cycles++;
     }
+
+end_loop:
 
     auto time_loop_end = std::chrono::steady_clock::now();
 
@@ -649,12 +661,12 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d)
 
 bool armon(Params& params)
 {
-    Data data("Armon", params.nb_cells);
+    Data data(params.nb_cells, "Armon");
     HostData host_data = data.as_mirror();
 
     TIC(); init_test(params, data); TAC("init_test");
     double grind_time;
-    std::tie(grind_time, std::ignore, std::ignore) = time_loop(params, data);
+    std::tie(grind_time, std::ignore, std::ignore) = time_loop(params, data, host_data);
 
     data.deep_copy_to_mirror(host_data);
 

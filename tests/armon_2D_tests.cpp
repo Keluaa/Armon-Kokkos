@@ -4,6 +4,7 @@
 
 #include "parameters.h"
 #include "indexing.h"
+#include "io.h"
 #include "armon_2D.h"
 
 #include "reference.h"
@@ -63,13 +64,13 @@ void run_comparison(Test test, const std::string& ref_data_path)
 {
     Params ref_params = get_reference_params(test);
 
-    Data data("ArmonTest", ref_params.nb_cells);
+    Data data(ref_params.nb_cells);
     HostData host_data = data.as_mirror();
 
     init_test(ref_params, data);
     flt_t dt;
     int cycles;
-    std::tie(std::ignore, dt, cycles) = time_loop(ref_params, data);
+    std::tie(std::ignore, dt, cycles) = time_loop(ref_params, data, host_data);
 
     data.deep_copy_to_mirror(host_data);
     ref_params.output_file = "ref_output_test";
@@ -106,9 +107,10 @@ TEST_CASE("NaNs check") {
     feenableexcept(FE_INVALID);
     for (Test test_case : {Test::Sod, Test::Sod_y, Test::Sod_circ, Test::Bizarrium}) {
         Params ref_params = get_reference_params(test_case);
-        Data data("ArmonTest", ref_params.nb_cells);
+        Data data(ref_params.nb_cells);
+        HostData host_data = data.as_mirror();
         init_test(ref_params, data);
-        time_loop(ref_params, data);
+        time_loop(ref_params, data, host_data);
     }
     fedisableexcept(FE_INVALID);
 }

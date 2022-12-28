@@ -24,13 +24,19 @@ struct DataHolder
     DataHolder() = default;
 
     [[maybe_unused]]
-    DataHolder(const std::string& label, int size);
+    explicit DataHolder(int size, const std::string& label = "");
 
     [[nodiscard]]
     DataHolder<typename view_t::HostMirror, typename mask_view_t::HostMirror> as_mirror() const;
 
     template<typename mirror_view_t, typename mirror_mask_view_t>
     void deep_copy_to_mirror(DataHolder<mirror_view_t, mirror_mask_view_t>& mirror) const;
+
+    [[nodiscard]] std::array<const view_t*, 15> vars_array() const;
+    [[nodiscard]] std::array<view_t*, 15> vars_array();
+
+    [[nodiscard]] std::array<const view_t*, 6> main_vars_array() const;
+    [[nodiscard]] std::array<view_t*, 6> main_vars_array();
 };
 
 
@@ -39,45 +45,39 @@ using HostData = DataHolder<host_view, host_mask_view>;
 
 
 template<typename view_t, typename mask_view_t>
-DataHolder<view_t, mask_view_t>::DataHolder(const std::string &label, int size)
-        : x(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , y(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , rho(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , umat(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , vmat(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , Emat(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , pmat(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , cmat(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , gmat(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , ustar(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , pstar(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , work_array_1(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , work_array_2(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , work_array_3(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , work_array_4(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
-        , domain_mask(Kokkos::view_alloc(label, Kokkos::WithoutInitializing), size)
+DataHolder<view_t, mask_view_t>::DataHolder(int size, const std::string& label)
+        : x(Kokkos::view_alloc(label + "x", Kokkos::WithoutInitializing), size)
+        , y(Kokkos::view_alloc(label + "y", Kokkos::WithoutInitializing), size)
+        , rho(Kokkos::view_alloc(label + "rho", Kokkos::WithoutInitializing), size)
+        , umat(Kokkos::view_alloc(label + "umat", Kokkos::WithoutInitializing), size)
+        , vmat(Kokkos::view_alloc(label + "vmat", Kokkos::WithoutInitializing), size)
+        , Emat(Kokkos::view_alloc(label + "Emat", Kokkos::WithoutInitializing), size)
+        , pmat(Kokkos::view_alloc(label + "pmat", Kokkos::WithoutInitializing), size)
+        , cmat(Kokkos::view_alloc(label + "cmat", Kokkos::WithoutInitializing), size)
+        , gmat(Kokkos::view_alloc(label + "gmat", Kokkos::WithoutInitializing), size)
+        , ustar(Kokkos::view_alloc(label + "ustar", Kokkos::WithoutInitializing), size)
+        , pstar(Kokkos::view_alloc(label + "pstar", Kokkos::WithoutInitializing), size)
+        , work_array_1(Kokkos::view_alloc(label + "work_array_1", Kokkos::WithoutInitializing), size)
+        , work_array_2(Kokkos::view_alloc(label + "work_array_2", Kokkos::WithoutInitializing), size)
+        , work_array_3(Kokkos::view_alloc(label + "work_array_3", Kokkos::WithoutInitializing), size)
+        , work_array_4(Kokkos::view_alloc(label + "work_array_4", Kokkos::WithoutInitializing), size)
+        , domain_mask(Kokkos::view_alloc(label + "domain_mask", Kokkos::WithoutInitializing), size)
 { }
 
 
 template<typename view_t, typename mask_view_t>
 DataHolder<typename view_t::HostMirror, typename mask_view_t::HostMirror>
-DataHolder<view_t, mask_view_t>::as_mirror() const {
+DataHolder<view_t, mask_view_t>::as_mirror() const
+{
     DataHolder<typename view_t::HostMirror, typename mask_view_t::HostMirror> mirror;
-    mirror.x = Kokkos::create_mirror_view(x);
-    mirror.y = Kokkos::create_mirror_view(y);
-    mirror.rho = Kokkos::create_mirror_view(rho);
-    mirror.umat = Kokkos::create_mirror_view(umat);
-    mirror.vmat = Kokkos::create_mirror_view(vmat);
-    mirror.Emat = Kokkos::create_mirror_view(Emat);
-    mirror.pmat = Kokkos::create_mirror_view(pmat);
-    mirror.cmat = Kokkos::create_mirror_view(cmat);
-    mirror.gmat = Kokkos::create_mirror_view(gmat);
-    mirror.ustar = Kokkos::create_mirror_view(ustar);
-    mirror.pstar = Kokkos::create_mirror_view(pstar);
-    mirror.work_array_1 = Kokkos::create_mirror_view(work_array_1);
-    mirror.work_array_2 = Kokkos::create_mirror_view(work_array_2);
-    mirror.work_array_3 = Kokkos::create_mirror_view(work_array_3);
-    mirror.work_array_4 = Kokkos::create_mirror_view(work_array_4);
+
+    auto our_vars = vars_array();
+    auto mirror_vars = mirror.vars_array();
+    auto our_it = our_vars.cbegin();
+    auto mirror_it = mirror_vars.begin();
+    for (; our_it != our_vars.cend() && mirror_it != mirror_vars.cend(); our_it++, mirror_it++) {
+        **mirror_it = Kokkos::create_mirror_view(**our_it);
+    }
     mirror.domain_mask = Kokkos::create_mirror_view(domain_mask);
     return mirror;
 }
@@ -85,23 +85,49 @@ DataHolder<view_t, mask_view_t>::as_mirror() const {
 
 template<typename view_t, typename mask_view_t>
 template<typename mirror_view_t, typename mirror_mask_view_t>
-void DataHolder<view_t, mask_view_t>::deep_copy_to_mirror(DataHolder<mirror_view_t, mirror_mask_view_t> &mirror) const {
-    Kokkos::deep_copy(mirror.x, x);
-    Kokkos::deep_copy(mirror.y, y);
-    Kokkos::deep_copy(mirror.rho, rho);
-    Kokkos::deep_copy(mirror.umat, umat);
-    Kokkos::deep_copy(mirror.vmat, vmat);
-    Kokkos::deep_copy(mirror.Emat, Emat);
-    Kokkos::deep_copy(mirror.pmat, pmat);
-    Kokkos::deep_copy(mirror.cmat, cmat);
-    Kokkos::deep_copy(mirror.gmat, gmat);
-    Kokkos::deep_copy(mirror.ustar, ustar);
-    Kokkos::deep_copy(mirror.pstar, pstar);
-    Kokkos::deep_copy(mirror.work_array_1, work_array_1);
-    Kokkos::deep_copy(mirror.work_array_2, work_array_2);
-    Kokkos::deep_copy(mirror.work_array_3, work_array_3);
-    Kokkos::deep_copy(mirror.work_array_4, work_array_4);
+void DataHolder<view_t, mask_view_t>::deep_copy_to_mirror(DataHolder<mirror_view_t, mirror_mask_view_t>& mirror) const
+{
+    auto our_vars = vars_array();
+    auto mirror_vars = mirror.vars_array();
+    auto our_it = our_vars.cbegin();
+    auto mirror_it = mirror_vars.begin();
+    for (; our_it != our_vars.cend() && mirror_it != mirror_vars.cend(); our_it++, mirror_it++) {
+        Kokkos::deep_copy(**mirror_it, **our_it);
+    }
     Kokkos::deep_copy(mirror.domain_mask, domain_mask);
+}
+
+
+template<typename view_t, typename mask_view_t>
+std::array<view_t*, 15> DataHolder<view_t, mask_view_t>::vars_array()
+{
+    return {
+        &x, &y, &rho, &umat, &vmat, &Emat, &pmat, &cmat, &gmat, &ustar, &pstar,
+        &work_array_1, &work_array_2, &work_array_3, &work_array_4
+    };
+}
+
+template<typename view_t, typename mask_view_t>
+std::array<const view_t*, 15> DataHolder<view_t, mask_view_t>::vars_array() const
+{
+    return {
+        &x, &y, &rho, &umat, &vmat, &Emat, &pmat, &cmat, &gmat, &ustar, &pstar,
+        &work_array_1, &work_array_2, &work_array_3, &work_array_4
+    };
+}
+
+
+template<typename view_t, typename mask_view_t>
+std::array<view_t*, 6> DataHolder<view_t, mask_view_t>::main_vars_array()
+{
+    return { &x, &y, &rho, &umat, &vmat, &pmat };
+}
+
+
+template<typename view_t, typename mask_view_t>
+std::array<const view_t*, 6> DataHolder<view_t, mask_view_t>::main_vars_array() const
+{
+    return { &x, &y, &rho, &umat, &vmat, &pmat };
 }
 
 #endif //ARMON_KOKKOS_DATA_H

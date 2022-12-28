@@ -104,6 +104,9 @@ struct Params
 
     const char* output_file = "output_cpp";
 
+    // Comparison
+    bool compare = false;
+
     void init_indexing();
     void print() const;
 

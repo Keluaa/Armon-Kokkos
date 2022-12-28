@@ -35,7 +35,8 @@ add_library(${LIB_NAME_2D}
         indexing.cpp indexing.h
         data.h
         armon_2D.h
-        kernel_info.cpp kernel_info.h)
+        kernel_info.cpp kernel_info.h
+        io.cpp io.h)
 target_link_libraries(${LIB_NAME_2D} PRIVATE Kokkos::kokkos)
 target_compile_options(${LIB_NAME_2D} PRIVATE ${OPTIONS})
 

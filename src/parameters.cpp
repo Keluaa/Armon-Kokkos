@@ -102,6 +102,9 @@ void Params::print() const
     else {
         printf(" - no output\n");
     }
+    if (compare) {
+        printf(" - comparison: true\n");
+    }
 }
 
 
