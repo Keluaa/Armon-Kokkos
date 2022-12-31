@@ -34,8 +34,8 @@ void acoustic(const Params& p, Data& d, const view& u)
         auto [ustar_i, pstar_i] = acoustic_Godunov(
             d.rho[i], d.rho[i-s], d.cmat[i], d.cmat[i-s],
                 u[i],     u[i-s], d.pmat[i], d.pmat[i-s]);
-	d.ustar[i] = ustar_i;
-	d.pstar[i] = pstar_i;
+        d.ustar[i] = ustar_i;
+        d.pstar[i] = pstar_i;
     });
 }
 
@@ -179,7 +179,7 @@ void cellUpdate(const Params& p, Data& d, flt_t dt)
     view& x = p.current_axis == Axis::X ? d.x : d.y;
 
     Kokkos::parallel_for(iter(real_domain(p)),
-    KOKKOS_LAMBDA(const int i){
+    KOKKOS_LAMBDA(const int i) {
         flt_t mask = d.domain_mask[i] * d.domain_mask[i+s] * d.domain_mask[i-s];
         flt_t dm = d.rho[i] * dx;
         d.rho[i]   = dm / (dx + dt * (d.ustar[i+s] - d.ustar[i]) * mask);
@@ -189,50 +189,22 @@ void cellUpdate(const Params& p, Data& d, flt_t dt)
 
     if (p.projection == Projection::None) {
         Kokkos::parallel_for(iter(real_domain(p)),
-        KOKKOS_LAMBDA(const int i){
+        KOKKOS_LAMBDA(const int i) {
             x[i] += dt * d.ustar[i];
         });
     }
 }
 
 
-KOKKOS_INLINE_FUNCTION bool domain_condition_test(const Test test, flt_t x, flt_t y)
+void init_test(const Params& p, Data& d)
 {
-    switch (test) {
-    case Test::Bizarrium:
-    case Test::Sod:      return x <= flt_t(0.5);
-    case Test::Sod_y:    return y <= flt_t(0.5);
-    case Test::Sod_circ: return std::pow(x - flt_t(0.5), flt_t(2)) + std::pow(y - flt_t(0.5), flt_t(2)) <= flt_t(0.125);
-    default:             return false;
-    }
-}
+    const TestInitParams tp = get_test_init_params(p.test);
 
+    flt_t sx = p.domain_size[0];
+    flt_t sy = p.domain_size[1];
 
-void init_test(Params& p, Data& d)
-{
-    flt_t left_rho, right_rho, left_p, right_p;
-    const flt_t gamma = 1.4;
-
-    switch (p.test) {
-    case Test::Sod:
-    case Test::Sod_y:
-    case Test::Sod_circ:
-        if (p.max_time == 0.0) p.max_time = 0.20;
-        if (p.cfl == 0.0)      p.cfl = 0.95;
-        left_rho  = 1.;
-        right_rho = 0.125;
-        left_p  = 1.0;
-        right_p = 0.1;
-        break;
-    case Test::Bizarrium:
-        if (p.max_time == 0.0) p.max_time = 80e-6;
-        if (p.cfl == 0.0)      p.cfl = 0.6;
-        left_rho  = 1.42857142857e+4;
-        right_rho = 10000.;
-        left_p  = 1.0;
-        right_p = 0.1;
-        break;
-    }
+    flt_t ox = p.domain_origin[0];
+    flt_t oy = p.domain_origin[1];
 
     bool one_more_ring = p.single_comm_per_axis_pass;
     int r = p.extra_ring_width;
@@ -242,38 +214,23 @@ void init_test(Params& p, Data& d)
         int ix = (i % p.row_length) - p.nb_ghosts;
         int iy = (i / p.row_length) - p.nb_ghosts;
 
-        d.x[i] = flt_t(ix) / flt_t(p.nx);
-        d.y[i] = flt_t(iy) / flt_t(p.ny);
+        d.x[i] = flt_t(ix) / flt_t(p.nx) * sx + ox;
+        d.y[i] = flt_t(iy) / flt_t(p.ny) * sy + oy;
 
-        flt_t x = d.x[i] + flt_t(1. / (2 * p.nx));
-        flt_t y = d.y[i] + flt_t(1. / (2 * p.ny));
-        if (p.test == Test::Bizarrium) {
-            if (d.x[i] < 0.5) {
-                d.rho[i]  = left_rho;
-                d.umat[i] = 0;
-                d.vmat[i] = 0;
-                d.Emat[i] = 4.48657821135e+6;
-            }
-            else {
-                d.rho[i]  = right_rho;
-                d.umat[i] = 250;
-                d.vmat[i] = 0;
-                d.Emat[i] = flt_t(0.5) * std::pow(d.umat[i], flt_t(2));
-            }
+        flt_t x_mid = d.x[i] + sx / (2 * p.nx);
+        flt_t y_mid = d.y[i] + sy / (2 * p.ny);
+
+        if (test_region_high(p.test, x_mid, y_mid)) {
+            d.rho[i] = tp.high_rho;
+            d.Emat[i] = tp.high_p / ((tp.gamma - 1) * tp.high_rho);
+            d.umat[i] = tp.high_u;
+            d.vmat[i] = tp.high_v;
         }
         else {
-            if (domain_condition_test(p.test, x, y)) {
-                d.rho[i]  = left_rho;
-                d.umat[i] = 0;
-                d.vmat[i] = 0;
-                d.Emat[i] = left_p / ((gamma - flt_t(1.)) * d.rho[i]);
-            }
-            else {
-                d.rho[i]  = right_rho;
-                d.umat[i] = 0;
-                d.vmat[i] = 0;
-                d.Emat[i] = right_p / ((gamma - flt_t(1.)) * d.rho[i]);
-            }
+            d.rho[i] = tp.low_rho;
+            d.Emat[i] = tp.low_p / ((tp.gamma - 1) * tp.low_rho);
+            d.umat[i] = tp.low_u;
+            d.vmat[i] = tp.low_v;
         }
 
         if (one_more_ring) {
@@ -286,8 +243,9 @@ void init_test(Params& p, Data& d)
             d.domain_mask[i] = (0 <= ix && ix < p.nx && 0 <= iy && iy < p.ny);
         }
 
+        // Set to zero to make sure no non-initialized values changes the result
         d.pmat[i] = 0;
-        d.cmat[i] = 1;
+        d.cmat[i] = 1;  // Set to 1 as a max speed of 0 will create NaNs
         d.ustar[i] = 0;
         d.pstar[i] = 0;
     });
@@ -491,8 +449,8 @@ void projection_remap(const Params& p, Data& d, flt_t dt)
 flt_t dtCFL(const Params& p, Data& d, flt_t dta)
 {
     flt_t dt = INFINITY;
-    flt_t dx = 1 / flt_t(p.nx);
-    flt_t dy = 1 / flt_t(p.ny);
+    flt_t dx = p.domain_size[0] / flt_t(p.nx);
+    flt_t dy = p.domain_size[1] / flt_t(p.ny);
 
     if (p.cst_dt) {
         return p.Dt;
@@ -529,8 +487,8 @@ bool step_checkpoint(const Params& p, const Data& d, HostData& hd, const char* s
     d.deep_copy_to_mirror(hd);
 
     char buf[100];
-    snprintf(buf, 100, "_%03d_%s", cycle + 1, step_label);
-    std::string step_file_name = std::string(p.output_file) + buf + (std::strlen(axis) > 0 ? "_" : "") + axis + "_0x0";
+    snprintf(buf, 100, "_%03d_%s", cycle, step_label);
+    std::string step_file_name = std::string(p.output_file) + buf + (std::strlen(axis) > 0 ? "_" : "") + axis;
 
     bool is_different;
     try {

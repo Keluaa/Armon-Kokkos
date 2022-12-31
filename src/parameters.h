@@ -3,6 +3,8 @@
 #define ARMON_KOKKOS_PARAMETERS_H
 
 #include <vector>
+#include <tuple>
+#include <cmath>
 
 
 #ifdef KOKKOS_ENABLE_PRAGMA_IVDEP
@@ -22,6 +24,20 @@ typedef double flt_t;
 enum class Test {
     Sod, Sod_y, Sod_circ, Bizarrium
 };
+
+std::array<flt_t, 2> default_domain_size(Test test);
+std::array<flt_t, 2> default_domain_origin(Test test);
+flt_t default_CFL(Test test);
+flt_t default_max_time(Test test);
+
+struct TestInitParams {
+    flt_t gamma, high_rho, low_rho, high_p, low_p, high_u, low_u, high_v, low_v;
+};
+
+TestInitParams get_test_init_params(Test test);
+
+bool test_region_high(Test test, flt_t x, flt_t y);
+
 
 enum class Scheme {
     Godunov, GAD
@@ -70,11 +86,13 @@ struct Params
     int nx = 10;
     int ny = 10;
     flt_t dx = 0;
-    flt_t cfl = 0.6;
-    flt_t Dt = 0.0;
+    flt_t cfl = 0;
+    flt_t Dt = 0;
     int stencil_width = 3;
     bool cst_dt = false;
     bool single_comm_per_axis_pass = false;
+    std::array<flt_t, 2> domain_size = { 0, 0 };
+    std::array<flt_t, 2> domain_origin = { NAN, NAN };  // NAN -> use the default value for the current test
 
     // Indexing
 
@@ -95,7 +113,7 @@ struct Params
 
     // Computation bounds
     int max_cycles = 100;
-    flt_t max_time = 0.0;
+    flt_t max_time = 0;
 
     // Output
     bool write_output = false;
@@ -108,6 +126,8 @@ struct Params
     // Comparison
     bool compare = false;
 
+    void init();
+    void set_default_values();
     void init_indexing();
     void print() const;
 

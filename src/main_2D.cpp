@@ -239,7 +239,7 @@ bool run_armon(int argc, char* argv[])
 {
     Params params;
     if (!parse_arguments(params, argc, argv)) return false;
-    params.init_indexing();
+    params.init();
     if (!check_parameters(params)) return false;
 
     if (params.verbose < 3) {

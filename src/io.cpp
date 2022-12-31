@@ -15,7 +15,7 @@ void write_output(const Params& p, const HostData& d, const char* file_name)
     int i_deb =    0 + (p.write_ghosts ? -p.nb_ghosts : 0);
     int i_fin = p.nx + (p.write_ghosts ? +p.nb_ghosts : 0);
 
-    const std::array vars = {&d.x, &d.y, &d.rho, &d.umat, &d.vmat, &d.pmat};
+    const auto vars = d.main_vars_array();
 
     for (int j = j_deb; j < j_fin; j++) {
         for (int i = i_deb; i < i_fin; i++) {
@@ -29,6 +29,8 @@ void write_output(const Params& p, const HostData& d, const char* file_name)
 
             fprintf(file, "\n");
         }
+
+        fprintf(file, "\n"); // For pm3d display with gnuplot
     }
 
     fclose(file);
@@ -52,7 +54,7 @@ void load_data(const Params& p, HostData& d, std::istream& file)
     int i_deb =    0 + (p.write_ghosts ? -p.nb_ghosts : 0);
     int i_fin = p.nx + (p.write_ghosts ? +p.nb_ghosts : 0);
 
-    const std::array vars = {&d.x, &d.y, &d.rho, &d.umat, &d.vmat, &d.pmat};
+    const auto vars = d.main_vars_array();
 
     for (int j = j_deb; j < j_fin; j++) {
         for (int i = i_deb; i < i_fin; i++) {
@@ -69,9 +71,9 @@ void load_data(const Params& p, HostData& d, std::istream& file)
 }
 
 
-bool is_approx(flt_t a, flt_t b)
+bool is_approx(flt_t a, flt_t b, flt_t tol)
 {
-    return std::abs(a - b) <= flt_t(1e-13);
+    return std::abs(a - b) <= tol;
 }
 
 
@@ -112,8 +114,6 @@ int compare_with_reference(const Params& params, const HostData& ref_data, const
             }
         }
     }
-
-    std::cout << "comp " << comp_count << ", diff: " << total_differences_count << "\n";
 
     return total_differences_count;
 }
