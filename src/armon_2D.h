@@ -52,7 +52,7 @@ void update_EOS(const Params& p, Data& d);
 
 void cellUpdate(const Params& p, Data& d, flt_t dt);
 
-void init_test(Params& p, Data& d);
+void init_test(const Params& p, Data& d);
 
 void boundaryConditions(const Params& p, Data& d, Side side);
 void boundaryConditions(const Params& p, Data& d);
@@ -69,6 +69,8 @@ void advection_second_order(const Params& p, Data& d, flt_t dt,
 void projection_remap(const Params& p, Data& d, flt_t dt);
 
 flt_t dtCFL(const Params& p, Data& d, flt_t dta);
+
+std::tuple<flt_t, flt_t> conservation_vars(const Params& p, Data& d);
 
 std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd);
 

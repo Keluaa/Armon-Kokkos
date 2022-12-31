@@ -46,13 +46,13 @@ Params get_reference_params(Test test_case)
     params.nx = 100;
     params.ny = 100;
 
-    params.max_cycles = 100;
-    params.max_time = 1;
+    params.max_cycles = 1000;
+    params.max_time = 0;
 
     params.verbose = 5;
     params.write_output = false;
 
-    params.init_indexing();
+    params.init();
 
     return params;
 }

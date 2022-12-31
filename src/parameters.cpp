@@ -6,7 +6,140 @@
 #include "Kokkos_Core.hpp"
 
 
-void Params::init_indexing() {
+std::array<flt_t, 2> default_domain_size(Test test)
+{
+    switch (test) {
+    case Test::Sod:
+    case Test::Bizarrium:
+    case Test::Sod_y:
+    case Test::Sod_circ:
+        return { 1, 1 };
+    default:
+        printf("Wrong test case: %d\n", (int) test);
+        return {};
+    }
+}
+
+
+std::array<flt_t, 2> default_domain_origin(Test test)
+{
+    switch (test) {
+    case Test::Sod:
+    case Test::Bizarrium:
+    case Test::Sod_y:
+    case Test::Sod_circ:
+        return { 0, 0 };
+    default:
+        printf("Wrong test case: %d\n", (int) test);
+        return {};
+    }
+}
+
+
+flt_t default_CFL(Test test)
+{
+    switch (test) {
+    case Test::Sod:
+    case Test::Sod_y:
+    case Test::Sod_circ:
+        return 0.95;
+    case Test::Bizarrium:
+        return 0.6;
+    default:
+        printf("Wrong test case: %d\n", (int) test);
+        return 0;
+    }
+}
+
+
+flt_t default_max_time(Test test)
+{
+    switch (test) {
+    case Test::Sod:
+    case Test::Sod_y:
+    case Test::Sod_circ:
+        return 0.20;
+    case Test::Bizarrium:
+        return 80e-6;
+    default:
+        printf("Wrong test case: %d\n", (int) test);
+        return 0;
+    }
+}
+
+
+TestInitParams get_test_init_params(Test test)
+{
+    switch (test) {
+    case Test::Sod:
+    case Test::Sod_y:
+    case Test::Sod_circ:
+        return {
+            7./5., // gamma
+            1.,    // high_ρ
+            0.125, // low_ρ
+            1.0,   // high_p
+            0.1,   // low_p
+            0.,    // high_u
+            0.,    // low_u
+            0.,    // high_v
+            0.,    // low_v
+        };
+    case Test::Bizarrium:
+        return {
+            2,                 // gamma
+            1.42857142857e+4,  // high_ρ
+            10000.,            // low_ρ
+            6.40939744478e+10, // high_p
+            312.5e6,           // low_p
+            0.,                // high_u
+            250.,              // low_u
+            0.,                // high_v
+            0.,                // low_v
+        };
+    default:
+        printf("Wrong test case: %d\n", (int) test);
+        return {};
+    }
+}
+
+
+bool test_region_high(Test test, flt_t x, flt_t y)
+{
+    switch (test) {
+    case Test::Sod:
+    case Test::Bizarrium: return x <= flt_t(0.5);
+    case Test::Sod_y:     return y <= flt_t(0.5);
+    case Test::Sod_circ:  return (x - flt_t(0.5)) * (x - flt_t(0.5)) +
+                                 (y - flt_t(0.5)) * (y - flt_t(0.5)) <= flt_t(0.125);
+    default: return false;
+    }
+}
+
+
+void Params::init()
+{
+    set_default_values();
+    init_indexing();
+    update_axis(current_axis);
+}
+
+
+void Params::set_default_values()
+{
+    if (cfl == 0)
+        cfl = default_CFL(test);
+    if (max_time == 0)
+        max_time = default_max_time(test);
+    if (domain_size[0] <= 0 || domain_size[1] <= 0)
+        domain_size = default_domain_size(test);
+    if (std::isnan(domain_origin[0]) || std::isnan(domain_origin[1]))
+        domain_origin = default_domain_origin(test);
+}
+
+
+void Params::init_indexing()
+{
     // Dimensions of an array
     row_length = nb_ghosts * 2 + nx;
     col_length = nb_ghosts * 2 + ny;
@@ -45,8 +178,6 @@ void Params::init_indexing() {
             << stencil_width << " > " << nb_ghosts << "\n";
         exit(1);
     }
-
-    update_axis(current_axis);
 }
 
 
@@ -84,6 +215,8 @@ void Params::print() const
     case Limiter::Superbee: printf("Superbee limiter\n"); break;
     }
     printf(" - domain:     %dx%d (%d ghosts)\n", nx, ny, nb_ghosts);
+    printf(" - domain size: %gx%g, origin: (%g, %g)\n",
+           domain_size[0], domain_size[1], domain_origin[0], domain_origin[1]);
     printf(" - nb cells:   %g (%g total)\n", double(nx * ny), double(nb_cells));
     printf(" - CFL:        %g\n", cfl);
     printf(" - Dt init:    %g\n", Dt);
@@ -125,12 +258,12 @@ void Params::update_axis(Axis axis)
     switch (axis) {
     case Axis::X:
         s = 1;
-        dx = 1 / flt_t(nx);
+        dx = domain_size[0] / flt_t(nx);
         return;
 
     case Axis::Y:
         s = row_length;
-        dx = 1 / flt_t(ny);
+        dx = domain_size[1] / flt_t(ny);
         return;
     }
 }
