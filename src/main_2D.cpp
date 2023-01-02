@@ -4,7 +4,10 @@
 #include "parameters.h"
 #include "data.h"
 #include "armon_2D.h"
+
+#if KOKKOS_ENABLE_CUDA || KOKKOS_ENABLE_HIP
 #include "kernel_info.h"
+#endif
 
 
 const char USAGE[] = R"(
@@ -244,7 +247,9 @@ bool run_armon(int argc, char* argv[])
 
     if (params.verbose < 3) {
         params.print();
+#if KOKKOS_ENABLE_CUDA || KOKKOS_ENABLE_HIP
         print_kernel_params(params);
+#endif
     }
 
     return armon(params);
