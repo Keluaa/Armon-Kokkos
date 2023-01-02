@@ -77,6 +77,7 @@ TEST_CASE("indexing") {
     Params p = get_default_params();
     p.single_comm_per_axis_pass = true;
     p.init();
+    REQUIRE(p.check());
 
     SUBCASE("Domains") {
         CHECK_EQ(real_domain(p),           std::tuple<int, int>(333, 1316));
@@ -98,6 +99,7 @@ TEST_CASE("Memory alignment") {
     init_kokkos();
     Params p = get_default_params();
     p.init();
+    REQUIRE(p.check());
     HostData data(p.nb_cells);
     for (auto& var : data.vars_array()) {
         auto ptr = reinterpret_cast<intptr_t>(var->data());
@@ -113,6 +115,7 @@ TEST_SUITE("NaNs check") {
         feenableexcept(FE_INVALID);
 
         Params ref_params = get_reference_params(test_case);
+        REQUIRE(ref_params.check());
         Data data(ref_params.nb_cells);
         HostData host_data = data.as_mirror();
         init_test(ref_params, data);
@@ -135,6 +138,7 @@ TEST_SUITE("Conservation") {
         init_kokkos();
 
         Params ref_params = get_reference_params(test_case);
+        REQUIRE(ref_params.check());
         Data data(ref_params.nb_cells);
         HostData host_data = data.as_mirror();
 
@@ -169,6 +173,7 @@ TEST_SUITE("Comparison with reference") {
         init_kokkos();
 
         Params ref_params = get_reference_params(test);
+        REQUIRE(ref_params.check());
 
         Data data(ref_params.nb_cells);
         HostData host_data = data.as_mirror();

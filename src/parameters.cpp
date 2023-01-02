@@ -136,6 +136,8 @@ void Params::set_default_values()
         domain_size = default_domain_size(test);
     if (is_ieee754_nan(domain_origin[0]) || is_ieee754_nan(domain_origin[1]))
         domain_origin = default_domain_origin(test);
+    if (stencil_width == 0)
+        stencil_width = nb_ghosts;
 }
 
 
@@ -161,6 +163,25 @@ void Params::init_indexing()
     } else {
         extra_ring_width = 0;
     }
+}
+
+
+bool Params::check() const
+{
+    if (nx <= 0 || ny <= 0) {
+        std::cerr << "ERROR: One of the dimensions of the domain is 0 or negative (nx=" << nx << ", ny=" << ny << ")\n";
+        return false;
+    }
+
+    if (cst_dt && Dt == 0.) {
+        std::cerr << "ERROR: Constant time step is set ('--cst-dt 1') but the initial time step is 0\n";
+        return false;
+    }
+
+    if (write_output && output_file == nullptr) {
+        std::cerr << "ERROR: Write output is on but no output file was given\n";
+        return false;
+    }
 
     int min_ghosts = 1;
     min_ghosts += scheme == Scheme::GAD;
@@ -168,17 +189,19 @@ void Params::init_indexing()
     min_ghosts += projection == Projection::Euler_2nd;
     if (nb_ghosts < min_ghosts) {
         std::cerr << "WARNING: There is not enough ghost cells for the given parameters. Expected at least "
-            << min_ghosts << ", got " << nb_ghosts << "\n";
+                  << min_ghosts << ", got " << nb_ghosts << "\n";
     }
     if (stencil_width < min_ghosts) {
         std::cerr << "WARNING: The stencil width given does not cover the estimated width. Expected at least "
-            << min_ghosts << ", got " << stencil_width << "\n";
+                  << min_ghosts << ", got " << stencil_width << "\n";
     }
     if (stencil_width > nb_ghosts) {
         std::cerr << "ERROR: The stencil width cannot be bigger than the number of ghost cells: "
-            << stencil_width << " > " << nb_ghosts << "\n";
-        exit(1);
+                  << stencil_width << " > " << nb_ghosts << "\n";
+        return false;
     }
+
+    return true;
 }
 
 

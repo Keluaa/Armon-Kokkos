@@ -21,7 +21,8 @@ Options:
     -s <scheme>             Numeric scheme: 'Godunov' (first order) or 'GAD' (second order)
     --limiter <limiter>     Limiter for the second order scheme: 'None', 'Minmod' (default), 'Superbee'
     --cells Nx,Ny           Number of cells in the 2D mesh
-    --nghost G              Number of ghost cells around the 2D domain
+    --nghost N              Number of ghost cells around the 2D domain
+    --stencil N             Width of the stencil in cells. Defaults to the number of ghost cells.
     --cycle N               Maximum number of iterations
     --riemann <solver>      Riemann solver: 'acoustic' only
     --projection <scheme>   Projection scheme: 'none' (lagrangian mode), 'euler' (1st order), 'euler_2nd' (2nd order)
@@ -103,6 +104,10 @@ bool parse_arguments(Params& p, int argc, char** argv)
         }
         else if (strcmp(argv[i], "--nghost") == 0) {
             p.nb_ghosts = (int) strtol(argv[i+1], nullptr, 10);
+            i++;
+        }
+        else if (strcmp(argv[i], "--stencil") == 0) {
+            p.stencil_width = (int) strtol(argv[i+1], nullptr, 10);
             i++;
         }
         else if (strcmp(argv[i], "--cycle") == 0) {
@@ -217,33 +222,12 @@ bool parse_arguments(Params& p, int argc, char** argv)
 }
 
 
-bool check_parameters(Params& p)
-{
-    if (p.nx <= 0 || p.ny <= 0) {
-        fputs("One of the dimensions of the domain is 0 or negative\n", stderr);
-        return false;
-    }
-
-    if (p.cst_dt && p.Dt == 0.) {
-        fputs("Constant time step is set ('--cst-dt 1') but the initial time step is 0\n", stderr);
-        return false;
-    }
-
-    if (p.write_output && p.output_file == nullptr) {
-        fputs("Write output is on but no output file was given\n", stderr);
-        return false;
-    }
-
-    return true;
-}
-
-
 bool run_armon(int argc, char* argv[])
 {
     Params params;
     if (!parse_arguments(params, argc, argv)) return false;
     params.init();
-    if (!check_parameters(params)) return false;
+    if (!params.check()) return false;
 
     if (params.verbose < 3) {
         params.print();

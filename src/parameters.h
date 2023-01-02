@@ -88,7 +88,7 @@ struct Params
     flt_t dx = 0;
     flt_t cfl = 0;
     flt_t Dt = 0;
-    int stencil_width = 3;
+    int stencil_width = 0;
     bool cst_dt = false;
     bool single_comm_per_axis_pass = false;
     std::array<flt_t, 2> domain_size = { 0, 0 };
@@ -129,6 +129,7 @@ struct Params
     void init();
     void set_default_values();
     void init_indexing();
+    [[nodiscard]] bool check() const;
     void print() const;
 
     void update_axis(Axis axis);
