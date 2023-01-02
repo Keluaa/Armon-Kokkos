@@ -1,5 +1,6 @@
 
 #include "parameters.h"
+#include "utils.h"
 
 #include <cstdio>
 
@@ -10,9 +11,9 @@ std::array<flt_t, 2> default_domain_size(Test test)
 {
     switch (test) {
     case Test::Sod:
-    case Test::Bizarrium:
     case Test::Sod_y:
     case Test::Sod_circ:
+    case Test::Bizarrium:
         return { 1, 1 };
     default:
         printf("Wrong test case: %d\n", (int) test);
@@ -25,9 +26,9 @@ std::array<flt_t, 2> default_domain_origin(Test test)
 {
     switch (test) {
     case Test::Sod:
-    case Test::Bizarrium:
     case Test::Sod_y:
     case Test::Sod_circ:
+    case Test::Bizarrium:
         return { 0, 0 };
     default:
         printf("Wrong test case: %d\n", (int) test);
@@ -133,7 +134,7 @@ void Params::set_default_values()
         max_time = default_max_time(test);
     if (domain_size[0] <= 0 || domain_size[1] <= 0)
         domain_size = default_domain_size(test);
-    if (std::isnan(domain_origin[0]) || std::isnan(domain_origin[1]))
+    if (is_ieee754_nan(domain_origin[0]) || is_ieee754_nan(domain_origin[1]))
         domain_origin = default_domain_origin(test);
 }
 

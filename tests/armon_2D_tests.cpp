@@ -106,17 +106,26 @@ TEST_CASE("Memory alignment") {
 }
 
 
-TEST_CASE("NaNs check") {
-    init_kokkos();
-    feenableexcept(FE_INVALID);
-    for (Test test_case : {Test::Sod, Test::Sod_y, Test::Sod_circ, Test::Bizarrium}) {
+TEST_SUITE("NaNs check") {
+    void run_nan_check(Test test_case)
+    {
+        init_kokkos();
+        feenableexcept(FE_INVALID);
+
         Params ref_params = get_reference_params(test_case);
         Data data(ref_params.nb_cells);
         HostData host_data = data.as_mirror();
         init_test(ref_params, data);
         time_loop(ref_params, data, host_data);
+
+        fedisableexcept(FE_INVALID);
     }
-    fedisableexcept(FE_INVALID);
+
+
+    TEST_CASE("Sod")       { run_nan_check(Test::Sod);       }
+    TEST_CASE("Sod_y")     { run_nan_check(Test::Sod_y);     }
+    TEST_CASE("Sod_circ")  { run_nan_check(Test::Sod_circ);  }
+    TEST_CASE("Bizarrium") { run_nan_check(Test::Bizarrium); }
 }
 
 

@@ -2,6 +2,7 @@
 #include "armon_2D.h"
 
 #include "io.h"
+#include "utils.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -471,7 +472,7 @@ flt_t dtCFL(const Params& p, Data& d, flt_t dta)
         dt *= std::min(dx, dy);
     }
 
-    if (!std::isfinite(dt) || dt <= 0)
+    if (!is_ieee754_finite(dt) || dt <= 0)
         return dt;
     else if (dta == 0)
         return p.Dt != 0 ? p.Dt : p.cfl * dt;
@@ -571,7 +572,7 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd)
     while (t < p.max_time && cycles < p.max_cycles) {
         TIC(); next_dt = dtCFL(p, d, prev_dt);  TAC("dtCFL");
 
-        if (!std::isfinite(next_dt) || next_dt <= 0.) {
+        if (!is_ieee754_finite(next_dt) || next_dt <= 0.) {
             printf("Invalid dt at cycle %d: %f\n", cycles, next_dt);
             Kokkos::finalize();
             exit(1);
