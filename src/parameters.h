@@ -20,6 +20,12 @@ typedef float flt_t;
 typedef double flt_t;
 #endif
 
+enum class Side {
+    Left,
+    Right,
+    Top,
+    Bottom
+};
 
 enum class Test {
     Sod, Sod_y, Sod_circ, Bizarrium
@@ -37,6 +43,7 @@ struct TestInitParams {
 TestInitParams get_test_init_params(Test test);
 
 bool test_region_high(Test test, flt_t x, flt_t y);
+std::array<flt_t, 2> boundaryCondition(Test test, Side side);
 
 
 enum class Scheme {
@@ -61,13 +68,6 @@ enum class AxisSplitting {
 
 enum class Axis {
     X, Y
-};
-
-enum class Side {
-    Left,
-    Right,
-    Top,
-    Bottom
 };
 
 

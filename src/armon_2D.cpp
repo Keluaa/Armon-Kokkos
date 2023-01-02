@@ -255,14 +255,14 @@ void init_test(const Params& p, Data& d)
 
 void boundaryConditions(const Params& p, Data& d, Side side)
 {
-    flt_t u_factor = 1., v_factor = 1.;
     int stride = 1, disp = 1, i_start, loop_range;
+
+    auto factors = boundaryCondition(p.test, side);
+    flt_t u_factor = factors[0];
+    flt_t v_factor = factors[1];
 
     switch (side) {
     case Side::Left:
-        if (p.test == Test::Sod || p.test == Test::Sod_circ) {
-            u_factor = -1.;
-        }
         stride = p.row_length;
         i_start = index_1D(p, -1, 0);
         loop_range = p.ny;
@@ -270,9 +270,6 @@ void boundaryConditions(const Params& p, Data& d, Side side)
         break;
 
     case Side::Right:
-        if (p.test == Test::Sod || p.test == Test::Sod_circ) {
-            u_factor = -1.;
-        }
         stride = p.row_length;
         i_start = index_1D(p, p.nx, 0);
         loop_range = p.ny;
@@ -280,9 +277,6 @@ void boundaryConditions(const Params& p, Data& d, Side side)
         break;
 
     case Side::Top:
-        if (p.test == Test::Sod_y || p.test == Test::Sod_circ) {
-            v_factor = -1.;
-        }
         stride = 1;
         i_start = index_1D(p, 0, p.ny);
         loop_range = p.nx;
@@ -290,9 +284,6 @@ void boundaryConditions(const Params& p, Data& d, Side side)
         break;
 
     case Side::Bottom:
-        if (p.test == Test::Sod_y || p.test == Test::Sod_circ) {
-            v_factor = -1.;
-        }
         stride = 1;
         i_start = index_1D(p, 0, -1);
         loop_range = p.nx;

@@ -118,6 +118,32 @@ bool test_region_high(Test test, flt_t x, flt_t y)
 }
 
 
+std::array<flt_t, 2> boundaryCondition(Test test, Side side)
+{
+    switch (test) {
+    case Test::Sod:
+    case Test::Bizarrium:
+    default:
+        if (side == Side::Left || side == Side::Right)
+            return { -1, 1 };
+        else
+            return { 1, 1 };
+
+    case Test::Sod_y:
+        if (side == Side::Left || side == Side::Right)
+            return { 1, 1 };
+        else
+            return { 1, -1 };
+
+    case Test::Sod_circ:
+        if (side == Side::Left || side == Side::Right)
+            return { -1, 1 };
+        else
+            return { 1, -1 };
+    }
+}
+
+
 void Params::init()
 {
     set_default_values();
