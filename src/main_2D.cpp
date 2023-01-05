@@ -33,6 +33,7 @@ Options:
     --write-output 0-1      If the variables should be written to the output file
     --write-ghosts 0-1      Include the ghost cells in the output file
     --output <file>         The output file name/path
+    --precision D           Number of digits of precision printed to the output file for each value.
     --write-throughput 0-1  Enable writing the cell throughput to a separate file (in Mega cells/sec)
     --splitting <method>    Axis splitting method: 'Sequential' (XYXY...), 'SequentialSym' (XYYXXYY...),
                             'Strang' (XYX with dt/2 for X, then YXY with dt/2 for Y, repeat)
@@ -146,6 +147,10 @@ bool parse_arguments(Params& p, int argc, char** argv)
         }
         else if (strcmp(argv[i], "--write-ghosts") == 0) {
             p.write_ghosts = strtol(argv[i+1], nullptr, 2);
+            i++;
+        }
+        else if (strcmp(argv[i], "--precision") == 0) {
+            p.output_precision = (int) strtol(argv[i+1], nullptr, 10);
             i++;
         }
         else if (strcmp(argv[i], "--projection") == 0) {

@@ -181,7 +181,7 @@ void cellUpdate(const Params& p, Data& d, flt_t dt)
 
     Kokkos::parallel_for(iter(real_domain(p)),
     KOKKOS_LAMBDA(const int i) {
-        flt_t mask = d.domain_mask[i] * d.domain_mask[i+s] * d.domain_mask[i-s];
+        flt_t mask = d.domain_mask[i];
         flt_t dm = d.rho[i] * dx;
         d.rho[i]   = dm / (dx + dt * (d.ustar[i+s] - d.ustar[i]) * mask);
         u[i]      += dt / dm * (d.pstar[i]              - d.pstar[i+s]               ) * mask;
@@ -223,13 +223,13 @@ void init_test(const Params& p, Data& d)
 
         if (test_region_high(p.test, x_mid, y_mid)) {
             d.rho[i] = tp.high_rho;
-            d.Emat[i] = tp.high_p / ((tp.gamma - 1) * tp.high_rho);
+            d.Emat[i] = tp.high_p / ((tp.gamma - flt_t(1)) * d.rho[i]);
             d.umat[i] = tp.high_u;
             d.vmat[i] = tp.high_v;
         }
         else {
             d.rho[i] = tp.low_rho;
-            d.Emat[i] = tp.low_p / ((tp.gamma - 1) * tp.low_rho);
+            d.Emat[i] = tp.low_p / ((tp.gamma - flt_t(1)) * d.rho[i]);
             d.umat[i] = tp.low_u;
             d.vmat[i] = tp.low_v;
         }
@@ -305,7 +305,7 @@ void boundaryConditions(const Params& p, Data& d, Side side)
             d.gmat[i] = d.gmat[ip];
 
             i  -= disp;
-            ip -= disp;
+            ip += disp;
         }
     });
 }
@@ -328,9 +328,8 @@ void euler_projection(const Params& p, Data& d, flt_t dt,
     const int s = p.s;
     Kokkos::parallel_for(iter(real_domain(p)),
     KOKKOS_LAMBDA(const int i) {
-        flt_t dX = p.dx + dt * (d.ustar[i+s] - d.ustar[i]) * d.domain_mask[i];
-
-        flt_t mask = d.domain_mask[i] * d.domain_mask[i+s];
+        flt_t mask = d.domain_mask[i];
+        flt_t dX = p.dx + dt * (d.ustar[i+s] - d.ustar[i]) * mask;
 
         flt_t tmp_rho  = (dX * d.rho[i]             - mask * (advection_rho[i+s]  - advection_rho[i] )) / p.dx;
         flt_t tmp_urho = (dX * d.rho[i] * d.umat[i] - mask * (advection_urho[i+s] - advection_urho[i])) / p.dx;
@@ -356,8 +355,6 @@ void advection_first_order(const Params& p, Data& d, flt_t dt,
         if (disp > 0) {
             i = idx - s;
         }
-
-        disp *= d.domain_mask[i];  // Don't advect this cell if it isn't real
 
         advection_rho[idx]  = disp * (d.rho[i]            );
         advection_urho[idx] = disp * (d.rho[i] * d.umat[i]);
@@ -392,11 +389,6 @@ void advection_second_order(const Params& p, Data& d, flt_t dt,
             Dx = p.dx + dt * d.ustar[i+s];
         }
 
-        disp *= d.domain_mask[i];  // Don't advect this cell if it isn't real
-
-        // Set the 2nd order contribution to 0 if any neighbouring cell isn't real
-        flt_t mask = d.domain_mask[i-s] * d.domain_mask[i] * d.domain_mask[i+s];
-
         flt_t Dx_lm = p.dx + dt * (d.ustar[i]     - d.ustar[i-s]);
         flt_t Dx_l  = p.dx + dt * (d.ustar[i+s]   - d.ustar[i]  );
         flt_t Dx_lp = p.dx + dt * (d.ustar[i+2*s] - d.ustar[i+s]);
@@ -409,7 +401,7 @@ void advection_second_order(const Params& p, Data& d, flt_t dt,
         flt_t slope_vr = slope_minmod(d.rho[i-s] * d.vmat[i-s], d.rho[i] * d.vmat[i], d.rho[i+s] * d.vmat[i+s], r_m, r_p);
         flt_t slope_Er = slope_minmod(d.rho[i-s] * d.Emat[i-s], d.rho[i] * d.Emat[i], d.rho[i+s] * d.Emat[i+s], r_m, r_p);
 
-        flt_t length_factor = Dx / (2 * Dx_l) * mask;
+        flt_t length_factor = Dx / (2 * Dx_l);
         advection_rho[idx]  = disp * (d.rho[i]             - slope_r  * length_factor);
         advection_urho[idx] = disp * (d.rho[i] * d.umat[i] - slope_ur * length_factor);
         advection_vrho[idx] = disp * (d.rho[i] * d.vmat[i] - slope_vr * length_factor);
@@ -554,6 +546,7 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd)
     p.update_axis(Axis::X);
 
     update_EOS(p, d);  // Finalize the initialisation by calling the EOS
+    if (step_checkpoint(p, d, hd, "update_EOS_init", 0, p.current_axis)) goto end_loop;
 
     flt_t initial_mass, initial_energy;
     if (p.verbose <= 1) {
@@ -587,7 +580,7 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd)
             auto [current_mass, current_energy] = conservation_vars(p, d);
             flt_t delta_mass   = std::abs(initial_mass   - current_mass)   / initial_mass   * 100;
             flt_t delta_energy = std::abs(initial_energy - current_energy) / initial_energy * 100;
-            printf("Cycle = %4d, dt = %.18f, t = %.18f, |ΔM| = %8.6f%%, |ΔE| = %8.6f%%\n",
+            printf("Cycle = %4d, dt = %.18f, t = %.18f, |ΔM| = %#8.6g%%, |ΔE| = %#8.6g%%\n",
                    cycles, prev_dt, t, delta_mass, delta_energy);
         }
 

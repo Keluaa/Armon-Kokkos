@@ -240,7 +240,12 @@ void Params::print() const
 #else
     printf(" - multithreading: 0\n");
 #endif
-    printf(" - use simd:   %d\n", USE_SIMD);
+    printf(" - use simd:   %d", USE_SIMD);
+#ifdef __FAST_MATH__
+    printf(", with fast math\n");
+#else
+    printf(", without fast math\n");
+#endif
 #ifdef KOKKOS_ENABLE_CUDA
     printf(" - use gpu:    %d\n", Kokkos::Cuda::impl_is_initialized());
 #elif defined(KOKKOS_ENABLE_HIP)

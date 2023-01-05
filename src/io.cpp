@@ -4,11 +4,12 @@
 #include "indexing.h"
 
 #include <fstream>
+#include <iomanip>
 
 
 void write_output(const Params& p, const HostData& d, const char* file_name)
 {
-    FILE* file = fopen(file_name, "w");
+    std::fstream file(file_name, std::ios::out);
 
     int j_deb =    0 + (p.write_ghosts ? -p.nb_ghosts : 0);
     int j_fin = p.ny + (p.write_ghosts ? +p.nb_ghosts : 0);
@@ -17,26 +18,28 @@ void write_output(const Params& p, const HostData& d, const char* file_name)
 
     const auto vars = d.main_vars_array();
 
+    file << std::scientific;
+    file.precision(p.output_precision);
+    const int width = p.output_precision + 3;
+
     for (int j = j_deb; j < j_fin; j++) {
         for (int i = i_deb; i < i_fin; i++) {
             int idx = index_1D(p, i, j);
 
             auto it = vars.cbegin();
-            fprintf(file, "%12.9f", (*it)->operator[](idx));
+            file << std::setw(width) << (*it)->operator[](idx);
             for (it++; it != vars.cend(); it++) {
-                fprintf(file, ", %12.9f", (*it)->operator[](idx));
+                file << ", " << std::setw(width) << (*it)->operator[](idx);
             }
 
-            fprintf(file, "\n");
+            file << "\n";
         }
 
-        fprintf(file, "\n"); // For pm3d display with gnuplot
+        file << "\n"; // For pm3d display with gnuplot
     }
 
-    fclose(file);
-
     if (p.verbose < 2) {
-        printf("Wrote to file: %s\n", p.output_file);
+        std::cout << "Wrote to file: " << file_name << "\n";
     }
 }
 
@@ -73,7 +76,8 @@ void load_data(const Params& p, HostData& d, std::istream& file)
 
 bool is_approx(flt_t a, flt_t b, flt_t tol)
 {
-    return std::abs(a - b) <= tol;
+    constexpr flt_t rtol = 4 * std::numeric_limits<flt_t>::epsilon();
+    return std::abs(a - b) <= std::max(tol, rtol * std::max(std::abs(a), std::abs(b)));
 }
 
 
@@ -96,9 +100,14 @@ int compare_with_reference(const Params& params, const HostData& ref_data, const
             for (int idx = row_deb; idx < row_fin; idx++) {
                 flt_t ref_val = (**ref_it)(idx);
                 flt_t val = (**it)(idx);
-                row_diff_count += !is_approx(ref_val, val);
-                comp_count++;
+                bool is_eq = is_approx(ref_val, val);
+                row_diff_count += !is_eq;
                 max_diff = std::max(max_diff, std::abs(ref_val - val));
+
+                if (!is_eq) {
+                    diff_start = std::min(idx, diff_start);
+                    diff_end = std::max(idx, diff_end);
+                }
             }
 
             total_differences_count += row_diff_count;
@@ -106,10 +115,12 @@ int compare_with_reference(const Params& params, const HostData& ref_data, const
             if (row_diff_count > 0) {
                 std::streamsize tmp_precision = std::cout.precision();
                 std::cout.precision(std::numeric_limits<flt_t>::digits10);
-                std::cout << "Row " << (j+1) << " has " << row_diff_count
-                          << " differences (max diff: " << max_diff << ")"
-                          << " in '" << (**ref_it).label()
-                          << "' with the reference\n";
+                std::cout << "Row " << std::setw(3) << (j+1)
+                          << " has " << std::setw(3) << row_diff_count
+                          << " differences in '" << std::setw(4) << (**ref_it).label()
+                          << "' from " << std::setw(3) << (diff_start - row_deb + 1)
+                          << " to " << std::setw(3) << (diff_end - row_deb + 1)
+                          << ", max diff: " << max_diff << "\n";
                 std::cout.precision(tmp_precision);
             }
         }

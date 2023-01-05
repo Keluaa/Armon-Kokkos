@@ -5,6 +5,7 @@
 #include <vector>
 #include <tuple>
 #include <cmath>
+#include <array>
 
 
 #ifdef KOKKOS_ENABLE_PRAGMA_IVDEP
@@ -119,6 +120,7 @@ struct Params
     bool write_output = false;
     bool write_ghosts = false;
     bool write_throughput = false;
+    int output_precision = 9;
     int verbose = 2;
 
     const char* output_file = "output_cpp";

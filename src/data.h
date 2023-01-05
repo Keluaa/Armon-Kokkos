@@ -32,11 +32,11 @@ struct DataHolder
     template<typename mirror_view_t, typename mirror_mask_view_t>
     void deep_copy_to_mirror(DataHolder<mirror_view_t, mirror_mask_view_t>& mirror) const;
 
-    [[nodiscard]] std::array<const view_t*, 15> vars_array() const;
-    [[nodiscard]] std::array<view_t*, 15> vars_array();
+    [[nodiscard]] auto vars_array() const;
+    [[nodiscard]] auto vars_array();
 
-    [[nodiscard]] std::array<const view_t*, 6> main_vars_array() const;
-    [[nodiscard]] std::array<view_t*, 6> main_vars_array();
+    [[nodiscard]] auto main_vars_array() const;
+    [[nodiscard]] auto main_vars_array();
 };
 
 
@@ -99,18 +99,18 @@ void DataHolder<view_t, mask_view_t>::deep_copy_to_mirror(DataHolder<mirror_view
 
 
 template<typename view_t, typename mask_view_t>
-std::array<view_t*, 15> DataHolder<view_t, mask_view_t>::vars_array()
+auto DataHolder<view_t, mask_view_t>::vars_array()
 {
-    return {
+    return std::array{
         &x, &y, &rho, &umat, &vmat, &Emat, &pmat, &cmat, &gmat, &ustar, &pstar,
         &work_array_1, &work_array_2, &work_array_3, &work_array_4
     };
 }
 
 template<typename view_t, typename mask_view_t>
-std::array<const view_t*, 15> DataHolder<view_t, mask_view_t>::vars_array() const
+auto DataHolder<view_t, mask_view_t>::vars_array() const
 {
-    return {
+    return std::array{
         &x, &y, &rho, &umat, &vmat, &Emat, &pmat, &cmat, &gmat, &ustar, &pstar,
         &work_array_1, &work_array_2, &work_array_3, &work_array_4
     };
@@ -118,14 +118,14 @@ std::array<const view_t*, 15> DataHolder<view_t, mask_view_t>::vars_array() cons
 
 
 template<typename view_t, typename mask_view_t>
-std::array<view_t*, 6> DataHolder<view_t, mask_view_t>::main_vars_array()
+auto DataHolder<view_t, mask_view_t>::main_vars_array()
 {
     return { &x, &y, &rho, &umat, &vmat, &pmat };
 }
 
 
 template<typename view_t, typename mask_view_t>
-std::array<const view_t*, 6> DataHolder<view_t, mask_view_t>::main_vars_array() const
+auto DataHolder<view_t, mask_view_t>::main_vars_array() const
 {
     return { &x, &y, &rho, &umat, &vmat, &pmat };
 }
