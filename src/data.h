@@ -10,6 +10,7 @@
 using view = Kokkos::View<flt_t*>;
 using host_view = view::HostMirror;
 using mask_view = Kokkos::View<bool*>;
+//using mask_view = Kokkos::View<flt_t*>;
 using host_mask_view = mask_view::HostMirror;
 
 
@@ -120,14 +121,14 @@ auto DataHolder<view_t, mask_view_t>::vars_array() const
 template<typename view_t, typename mask_view_t>
 auto DataHolder<view_t, mask_view_t>::main_vars_array()
 {
-    return { &x, &y, &rho, &umat, &vmat, &pmat };
+    return std::array{ &x, &y, &rho, &umat, &vmat, &pmat };
 }
 
 
 template<typename view_t, typename mask_view_t>
 auto DataHolder<view_t, mask_view_t>::main_vars_array() const
 {
-    return { &x, &y, &rho, &umat, &vmat, &pmat };
+    return std::array{ &x, &y, &rho, &umat, &vmat, &pmat };
 }
 
 #endif //ARMON_KOKKOS_DATA_H

@@ -87,15 +87,13 @@ int compare_with_reference(const Params& params, const HostData& ref_data, const
     auto vars = data.main_vars_array();
 
     int total_differences_count = 0;
-    int comp_count = 0;
-
     for (int j = 0; j < params.ny; j++) {
         int row_deb = index_1D(params, 0, j);
         int row_fin = index_1D(params, params.nx, j);
 
         auto ref_it = ref_vars.cbegin(), it = vars.cbegin();
         for (int field_i = 0; field_i < ref_vars.size(); field_i++, ref_it++, it++) {
-            int row_diff_count = 0;
+            int row_diff_count = 0, diff_start = row_fin, diff_end = row_deb;
             flt_t max_diff = 0;
             for (int idx = row_deb; idx < row_fin; idx++) {
                 flt_t ref_val = (**ref_it)(idx);
