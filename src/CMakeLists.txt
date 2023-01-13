@@ -1,31 +1,16 @@
 
 if(Kokkos_ENABLE_CUDA)
-    set(LIB_NAME "armon_cuda")
     set(LIB_NAME_2D "armon_cuda_2D")
 elseif(Kokkos_ENABLE_HIP)
-    set(LIB_NAME "armon_hip.exe")
     set(LIB_NAME_2D "armon_hip_2D")
 elseif(Kokkos_ENABLE_OPENMP)
-    set(LIB_NAME "armon_openmp")
     set(LIB_NAME_2D "armon_openmp_2D")
 else()
-    set(LIB_NAME "armon_serial")
     set(LIB_NAME_2D "armon_serial_2D")
 endif()
 
-set(LIB_NAME ${LIB_NAME} PARENT_SCOPE)
 set(LIB_NAME_2D ${LIB_NAME_2D} PARENT_SCOPE)
-
-set(EXE_NAME "${LIB_NAME}.exe")
 set(EXE_NAME_2D "${LIB_NAME_2D}.exe")
-
-# 1D executable
-
-add_executable(${EXE_NAME}
-        armon.cpp)
-target_link_libraries(${EXE_NAME} PRIVATE Kokkos::kokkos)
-target_compile_options(${EXE_NAME} PRIVATE ${OPTIONS})
-target_compile_definitions(${EXE_NAME} PRIVATE USE_SINGLE_PRECISION=${PRECISION})
 
 # 2D library & executable
 
