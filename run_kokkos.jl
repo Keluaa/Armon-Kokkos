@@ -39,7 +39,7 @@ project_dir = @__DIR__()
 run_dir = project_dir * "/../data"
 make_options = ["--no-print-directory"]
 
-# Julia adds its libs to the ENV, which can interfere with cmake
+# Julia adds its libs to the ENV, which can interfere with cmake
 cmake_env = copy(ENV)
 delete!(cmake_env, "LD_LIBRARY_PATH")
 
@@ -49,19 +49,19 @@ function KokkosOptions(;
         nghost = 2, cfl = 0.6, Dt = 0., maxtime = 0.0,
         maxcycle = 500, projection = "euler", cst_dt = false, ieee_bits = 64,
         silent = 2, output_file = "output", write_output = false, write_ghosts = false,
-        use_simd = true, gpu = "", 
+        use_simd = true, gpu = "",
         num_threads = 1, threads_places = "cores", threads_proc_bind = "close",
         dimension = 2, axis_splitting = [], tests = [], cells_list = [],
         base_file_name = "", gnuplot_script = "", repeats = 1,
         compiler = "clang")
     return KokkosOptions(
-        scheme, riemann, riemann_limiter, 
-        nghost, cfl, Dt, maxtime, maxcycle, 
-        projection, cst_dt, ieee_bits, 
-        silent, output_file, write_output, write_ghosts, 
-        use_simd, gpu, 
-        num_threads, threads_places, threads_proc_bind, 
-        dimension, axis_splitting, tests, cells_list, 
+        scheme, riemann, riemann_limiter,
+        nghost, cfl, Dt, maxtime, maxcycle,
+        projection, cst_dt, ieee_bits,
+        silent, output_file, write_output, write_ghosts,
+        use_simd, gpu,
+        num_threads, threads_places, threads_proc_bind,
+        dimension, axis_splitting, tests, cells_list,
         base_file_name, gnuplot_script, repeats,
         compiler
     )
@@ -84,7 +84,7 @@ function parse_arguments(args::Vector{String})
     while i <= length(args)
         arg = args[i]
     
-        # Solver params
+        # Solver params
         if arg == "-s"
             options.scheme = replace(args[i+1], '-' => '_')
             i += 1
@@ -119,7 +119,7 @@ function parse_arguments(args::Vector{String})
             options.nghost = parse(Int, args[i+1])
             i += 1
     
-        # Solver output params
+        # Solver output params
         elseif arg == "--verbose"
             options.silent = parse(Int, args[i+1])
             i += 1
@@ -133,7 +133,7 @@ function parse_arguments(args::Vector{String})
             options.write_ghosts = parse(Bool, args[i+1])
             i += 1
     
-        # Multithreading params
+        # Multithreading params
         elseif arg == "--use-simd"
             options.use_simd = parse(Bool, args[i+1])
             i += 1
@@ -147,7 +147,7 @@ function parse_arguments(args::Vector{String})
             options.threads_proc_bind = args[i+1]
             i += 1
     
-        # GPU params
+        # GPU params
         elseif arg == "--gpu"
             options.gpu = uppercase(args[i+1])
             i += 1
@@ -189,7 +189,7 @@ function parse_arguments(args::Vector{String})
             options.repeats = parse(Int, args[i+1])
             i += 1
     
-        # Measurement output params
+        # Measurement output params
         elseif arg == "--data-file"
             options.base_file_name = args[i+1]
             i += 1
@@ -222,7 +222,7 @@ function run_cmd_print_on_error(cmd::Cmd)
     # However if there is an error we print the command's output
     # A temporary file is used to achieve that
     mktemp() do _, file
-        try 
+        try
             run(pipeline(cmd, stdout=file#= , stderr=file =#))
         catch
             flush(file)
@@ -256,7 +256,7 @@ function init_cmake(options::KokkosOptions)
         target_exe = "armon_hip"
         append!(cmake_options, [
             "-DKokkos_ENABLE_HIP=ON",
-            # Override the C++ compiler for the one required by HIP
+            # Override the C++ compiler for the one required by HIP
             "-DCMAKE_C_COMPILER=hipcc",
             "-DCMAKE_CXX_COMPILER=hipcc"
         ])
@@ -303,6 +303,10 @@ end
 
 function compile_backend(build_dir, target_exe)
     run_cmd_print_on_error(Cmd(`make $make_options $target_exe`; env=cmake_env, dir=build_dir))
+    exe_path = build_dir * "/src/$target_exe"
+    if !isfile(exe_path)
+        error("Could not compile the executable at $exe_path, ARGS: $ARGS")
+    end
     return build_dir * "/src/$target_exe"
 end
 
@@ -311,6 +315,10 @@ function setup_env(options::KokkosOptions)
     ENV["OMP_PLACES"] = options.threads_places
     ENV["OMP_PROC_BIND"] = options.threads_proc_bind
     ENV["OMP_NUM_THREADS"] = options.num_threads
+    if haskey(ENV, "KMP_AFFINITY")
+        # Prevent Intel's variables from interfering with ours
+        delete!(ENV, "KMP_AFFINITY")
+    end
 end
 
 
@@ -356,9 +364,9 @@ function run_and_parse_output(cmd::Cmd, verbose::Bool, repeats::Int)
         println(cmd)
     end
 
-    total_giga_cells_per_sec = 0
+    vals_cells_per_sec = Vector{Float64}(undef, repeats)
 
-    for _ in 1:repeats
+    for i in 1:repeats
         output = read(cmd, String)
 
         mega_cells_per_sec_raw = match(r"Cells/sec:\s*\K[0-9\.]+", output)
@@ -371,12 +379,10 @@ function run_and_parse_output(cmd::Cmd, verbose::Bool, repeats::Int)
 
         mega_cells_per_sec = parse(Float64, mega_cells_per_sec_raw.match)
         giga_cells_per_sec = mega_cells_per_sec / 1e3
-        total_giga_cells_per_sec += giga_cells_per_sec
+        vals_cells_per_sec[i] = giga_cells_per_sec
     end
 
-    total_giga_cells_per_sec /= repeats
-
-    return total_giga_cells_per_sec
+    return vals_cells_per_sec
 end
 
 
@@ -408,26 +414,34 @@ function run_armon(options::KokkosOptions, verbose::Bool)
                 "--cells", join(cells, ',')
             ]
             append!(args, base_args)
-    
-            if options.dimension == 1
-                @printf(" - %s, %10g cells: ", test, cells[1])
+
+            if dimension == 1
+                @printf(" - %s, %11g cells: ", test, cells[1])
             else
-                @printf(" - %s, %-14s %10g cells (%5gx%-5g): ",
-                    test, axis_splitting, prod(cells), cells[1], cells[2])
+                @printf(" - (%2dx%-2d) %-4s %-14s %11g cells (%5gx%-5g): ", 
+                    1, 1, test, axis_splitting, prod(cells), cells[1], cells[2])
             end
-    
+
             run_cmd = get_run_command(exe_path, args)
-            cells_throughput = run_and_parse_output(run_cmd, verbose, options.repeats)
-            
-            @printf("%.2f Giga cells/sec\n", cells_throughput)
-            
+            repeats_cells_throughput = run_and_parse_output(run_cmd, verbose, options.repeats)
+
+            total_cells_per_sec = mean(repeats_cells_throughput)
+
+            if length(repeats_cells_throughput) > 1
+                std_cells_per_sec = std(repeats_cells_throughput; corrected=true)
+            else
+                std_cells_per_sec = 0
+            end
+
+            @printf("%8.3f ± %4.2f Giga cells/sec", total_cells_per_sec, std_cells_per_sec)
+
             if !isempty(data_file_name)
-                # Append the result to the output file
+                # Append the result to the output file
                 open(data_file_name, "a") do file
-                    println(file, prod(cells), ", ", cells_throughput)
+                    println(file, prod(cells), ", ", total_cells_per_sec)
                 end
             end
-            
+
             if !isempty(options.gnuplot_script)
                 # Update the plot
                 # We redirect the output of gnuplot to null so that there is no warning messages displayed
