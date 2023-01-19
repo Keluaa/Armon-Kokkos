@@ -178,12 +178,7 @@ function parse_arguments(args::Vector{String})
                 options.cells_list = domains_list_t
             end
             i += 1
-        
-        # MPI params
-        elseif arg == "--single-comm"
-            options.single_comm_per_axis_pass = parse(Bool, args[i+1])
-            i += 1
-    
+
         # Measurements params
         elseif arg == "--repeats"
             options.repeats = parse(Int, args[i+1])
@@ -273,6 +268,7 @@ function init_cmake(options::KokkosOptions)
             c_compiler = "gcc"
             cpp_compiler = "g++"
         elseif compiler == "clang"
+            options.gpu == "CUDA" && @warn "CUDA compilation with Clang might be broken" maxlog=1
             c_compiler = "clang"
             cpp_compiler = "clang++"
         else

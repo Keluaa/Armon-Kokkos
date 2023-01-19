@@ -105,19 +105,6 @@ TestInitParams get_test_init_params(Test test)
 }
 
 
-bool test_region_high(Test test, flt_t x, flt_t y)
-{
-    switch (test) {
-    case Test::Sod:
-    case Test::Bizarrium: return x <= flt_t(0.5);
-    case Test::Sod_y:     return y <= flt_t(0.5);
-    case Test::Sod_circ:  return (x - flt_t(0.5)) * (x - flt_t(0.5)) +
-                                 (y - flt_t(0.5)) * (y - flt_t(0.5)) <= flt_t(0.125);
-    default: return false;
-    }
-}
-
-
 std::array<flt_t, 2> boundaryCondition(Test test, Side side)
 {
     switch (test) {

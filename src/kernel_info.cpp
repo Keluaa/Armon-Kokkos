@@ -31,9 +31,10 @@ std::tuple<dim3d, dim3d> get_block_and_grid_size(const Policy& policy)
 
     dim3d block{1, block_size, 1};
     dim3d grid{
-           std::min(
-                   typename Policy::index_type((nb_work + block[1] - 1) / block[1]),
-                   typename Policy::index_type(max_grid[0])),
+	   static_cast<unsigned int>(std::min(
+               typename Policy::index_type((nb_work + block[1] - 1) / block[1]),
+               typename Policy::index_type(max_grid[0])
+	   )),
            1, 1};
 
     return std::make_tuple(block, grid);
@@ -56,7 +57,7 @@ std::tuple<dim3d, dim3d> get_block_and_grid_size_reduction(const Policy& policy)
     const unsigned block_size = reduction.local_block_size(functor);
 
     dim3d block{1, block_size, 1};
-    dim3d grid{std::min((int) block[1], nb_work), 1, 1};
+    dim3d grid{std::min(block[1], static_cast<unsigned int>(nb_work)), 1, 1};
 
     return std::make_tuple(block, grid);
 }

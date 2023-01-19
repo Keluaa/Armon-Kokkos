@@ -5,7 +5,7 @@
 #include "data.h"
 #include "armon_2D.h"
 
-#if KOKKOS_ENABLE_CUDA || KOKKOS_ENABLE_HIP
+#if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP)
 #include "kernel_info.h"
 #endif
 
@@ -210,7 +210,8 @@ bool parse_arguments(Params& p, int argc, char** argv)
         }
         else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             puts(USAGE);
-            return false;
+	    Kokkos::finalize();
+	    exit(0);
         }
         else {
             fprintf(stderr, "Wrong option: %s\n", argv[i]);
@@ -236,7 +237,7 @@ bool run_armon(int argc, char* argv[])
 
     if (params.verbose < 3) {
         params.print();
-#if KOKKOS_ENABLE_CUDA || KOKKOS_ENABLE_HIP
+#if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP)
         print_kernel_params(params);
 #endif
     }
