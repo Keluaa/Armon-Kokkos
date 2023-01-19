@@ -15,8 +15,8 @@ set(Kokkos_ENABLE_LIBRT OFF CACHE BOOL "Kokkos_ENABLE_LIBRT" FORCE)
 set(Kokkos_ENABLE_LIBDL OFF CACHE BOOL "Kokkos_ENABLE_LIBDL" FORCE)
 
 if(Kokkos_ENABLE_HIP)
-    set(Kokkos_ARCH_VEGA908 ON CACHE BOOL "Kokkos_ARCH_VEGA908" FORCE) # Mi100 GPU
-    #set(Kokkos_ARCH_VEGA90A ON CACHE BOOL "Kokkos_ARCH_VEGA90A" FORCE) # Mi250 GPU
+    set(Kokkos_ARCH_VEGA908 ON) # Mi100 GPU
+    #set(Kokkos_ARCH_VEGA90A ON) # Mi250 GPU
 
     if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(Kokkos_ENABLE_HIP_MULTIPLE_KERNEL_INSTANTIATIONS ON CACHE BOOL "Kokkos_ENABLE_HIP_MULTIPLE_KERNEL_INSTANTIATIONS" FORCE)
@@ -27,7 +27,7 @@ if(Kokkos_ENABLE_CUDA)
     execute_process(COMMAND hostname RESULT_VARIABLE HOSTNAME)
     if(HOSTNAME MATCHES "^login")
         # The GPU architecture will not be detected automatically, set it to AMPERE 80 by default
-        set(Kokkos_ARCH_AMPERE80 ON CACHE BOOL "Kokkos_ARCH_AMPERE80" FORCE)  # A100 GPU
+        set(Kokkos_ARCH_AMPERE80 ON)  # A100 GPU
     endif()
 
     set(Kokkos_ENABLE_CUDA_CONSTEXPR ON CACHE BOOL "Kokkos_ENABLE_CUDA_CONSTEXPR" FORCE)
@@ -47,8 +47,18 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT Kokkos_ENABLE_OPENMP AND NOT Kokkos
     set(Kokkos_ENABLE_DEBUG ON CACHE BOOL "Kokkos_ENABLE_DEBUG" FORCE)
     set(Kokkos_ENABLE_DEBUG_BOUNDS_CHECK ON CACHE BOOL "Kokkos_ENABLE_DEBUG_BOUNDS_CHECK" FORCE)
     # Disable fast math in order to catch NANs more easily
-    set(OPTIONS)
+    set(OPTIONS "-fno-fast-math")
 else()
+    set(Kokkos_ENABLE_DEBUG OFF CACHE BOOL "Kokkos_ENABLE_DEBUG" FORCE)
+    set(Kokkos_ENABLE_DEBUG_BOUNDS_CHECK OFF CACHE BOOL "Kokkos_ENABLE_DEBUG_BOUNDS_CHECK" FORCE)
+
+    # Optimize for the native architecture when using only the CPU
+    if(Kokkos_ENABLE_OPENMP AND NOT Kokkos_ENABLE_CUDA AND NOT Kokkos_ENABLE_HIP)
+        set(Kokkos_ARCH_NATIVE ON)
+    else()
+        set(Kokkos_ARCH_NATIVE OFF)
+    endif()
+
     set(OPTIONS "-ffast-math")
 endif()
 

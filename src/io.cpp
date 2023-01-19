@@ -20,7 +20,7 @@ void write_output(const Params& p, const HostData& d, const char* file_name)
 
     file << std::scientific;
     file.precision(p.output_precision);
-    const int width = p.output_precision + 3;
+    const int width = p.output_precision + 7;
 
     for (int j = j_deb; j < j_fin; j++) {
         for (int i = i_deb; i < i_fin; i++) {
