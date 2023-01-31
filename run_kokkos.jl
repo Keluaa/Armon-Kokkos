@@ -426,19 +426,20 @@ function run_armon(options::KokkosOptions, verbose::Bool)
     for test in options.tests, axis_splitting in options.axis_splitting
         if isempty(options.base_file_name)
             data_file_name = ""
-        elseif options.dimension == 1
-            data_file_name = options.base_file_name * test
-            energy_file_name = data_file_name * "_ENERGY.csv"
-            data_file_name *= ".csv"
         else
             data_file_name = options.base_file_name * test
 
-            if length(options.axis_splitting) > 1
+            if options.dimension > 1 && length(options.axis_splitting) > 1
                 data_file_name *= "_" * axis_splitting
             end
 
             energy_file_name = data_file_name * "_ENERGY.csv"
             data_file_name *= ".csv"
+
+            data_dir = dirname(data_file_name)
+            if !isdir(data_dir)
+                mkpath(data_dir)
+            end
         end
 
         for cells in options.cells_list
