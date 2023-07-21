@@ -2,6 +2,7 @@
 use_omp ?= 1
 use_simd ?= 1
 use_single ?= 0
+use_nvtx ?= 0
 compiler ?=
 dim ?= 1
 
@@ -21,6 +22,12 @@ ifeq ($(use_single), 1)
 	_flt = -DUSE_SINGLE_PRECISION=ON
 else
 	_flt = -DUSE_SINGLE_PRECISION=OFF
+endif
+
+ifeq ($(use_nvtx), 1)
+	_nvtx = -DUSE_NVTX=ON
+else
+	_nvtx = -DUSE_NVTX=OFF
 endif
 
 ifeq ($(compiler), icc)
@@ -44,7 +51,7 @@ $(error "Wrong dimension: " $(dim))
 endif
 
 build_type ?= Release
-make_args ?= --no-print-directory
+make_args ?= --no-print-directory -j
 
 RUN_DIR ?= ./data
 args ?=
@@ -88,7 +95,7 @@ $(RUN_DIR):
 build-cuda:
 	@mkdir -p ./cmake-build-cuda
 	rm -f ./cmake-build-cuda/CMakeCache.txt
-	cd ./cmake-build-cuda && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DKokkos_ENABLE_CUDA=ON $(comp) $(_omp) $(_simd) $(_flt) .. && $(MAKE) $(make_args) clean
+	cd ./cmake-build-cuda && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DKokkos_ENABLE_CUDA=ON $(comp) $(_omp) $(_simd) $(_flt) $(_nvtx) .. && $(MAKE) $(make_args) clean
 
 run-cuda: ./cmake-build-cuda/src/armon_cuda$(_dim).exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-cuda/src/armon_cuda$(_dim).exe $(args_)
