@@ -11,6 +11,44 @@
 #include <string>
 #include <array>
 
+#if USE_NVTX == 1
+#include <nvtx3/nvToolsExt.h>
+#include <string_view>
+
+auto nvtxAttribs(const char* message)
+{
+    nvtxEventAttributes_t attr{};
+    attr.version = NVTX_VERSION;
+    attr.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+    attr.colorType = NVTX_COLOR_ARGB;
+    attr.color = std::hash<std::string_view>{}(std::string_view(message));
+    attr.messageType = NVTX_MESSAGE_TYPE_ASCII;
+    attr.message.ascii = message;
+    return attr;
+}
+
+static nvtxDomainHandle_t ARMON_DOMAIN = nullptr;
+
+#define BEGIN_RANGE(name)                      \
+    auto attr_r_ ## name = nvtxAttribs(#name); \
+    auto range_hdl_ ## name = nvtxDomainRangeStartEx(ARMON_DOMAIN, &(attr_r_ ## name))
+
+#define END_RANGE(name) \
+    nvtxRangeEnd(range_hdl_ ## name)
+
+void init_nvtx()
+{
+    if (ARMON_DOMAIN == nullptr) {
+        ARMON_DOMAIN = nvtxDomainCreateA("Armon");
+    }
+}
+
+#else
+void init_nvtx() {}
+#define BEGIN_RANGE(name) do {} while (false)
+#define END_RANGE(name) do {} while (false)
+#endif
+
 
 std::map<std::string, double> time_contribution;
 
@@ -420,14 +458,18 @@ void projection_remap(const Params& p, Data& d, flt_t dt)
     view& advection_vrho = d.work_array_3;
     view& advection_Erho = d.work_array_4;
 
+    BEGIN_RANGE(advection);
     if (p.projection == Projection::Euler) {
         advection_first_order(p, d, dt, advection_rho, advection_urho, advection_vrho, advection_Erho);
     }
     else if (p.projection == Projection::Euler_2nd) {
         advection_second_order(p, d, dt, advection_rho, advection_urho, advection_vrho, advection_Erho);
     }
+    END_RANGE(advection);
 
+    BEGIN_RANGE(projection);
     euler_projection(p, d, dt, advection_rho, advection_urho, advection_vrho, advection_Erho);
+    END_RANGE(projection);
 }
 
 
@@ -546,7 +588,9 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd)
 
     p.update_axis(Axis::X);
 
+    BEGIN_RANGE(EOS_init);
     update_EOS(p, d);  // Finalize the initialisation by calling the EOS
+    END_RANGE(EOS_init);
     if (step_checkpoint(p, d, hd, "update_EOS_init", 0, p.current_axis)) goto end_loop;
 
     flt_t initial_mass, initial_energy;
@@ -555,7 +599,10 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd)
     }
 
     while (t < p.max_time && cycles < p.max_cycles) {
+        BEGIN_RANGE(cycle);
+        BEGIN_RANGE(time_step);
         TIC(); next_dt = dtCFL(p, d, prev_dt);  TAC("dtCFL");
+        END_RANGE(time_step);
 
         if (!is_ieee754_finite(next_dt) || next_dt <= 0.) {
             printf("Invalid dt at cycle %d: %f\n", cycles, next_dt);
@@ -570,11 +617,13 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd)
         for (auto [axis, dt_factor] : p.split_axes(cycles)) {
             p.update_axis(axis);
 
-            TIC(); update_EOS(p, d);                            TAC("update_EOS");         CHECK_STEP("update_EOS");
-            TIC(); boundaryConditions(p, d);                    TAC("boundaryConditions"); CHECK_STEP("boundaryConditions");
-            TIC(); numericalFluxes(p, d, prev_dt * dt_factor);  TAC("numericalFluxes");    CHECK_STEP("numericalFluxes");
-            TIC(); cellUpdate(p, d, prev_dt * dt_factor);       TAC("cellUpdate");         CHECK_STEP("cellUpdate");
-            TIC(); projection_remap(p, d, prev_dt * dt_factor); TAC("euler_proj");         CHECK_STEP("projection_remap");
+            BEGIN_RANGE(axis);
+            BEGIN_RANGE(EOS);    TIC(); update_EOS(p, d);                            TAC("update_EOS");         END_RANGE(EOS);    CHECK_STEP("update_EOS");
+            BEGIN_RANGE(BC);     TIC(); boundaryConditions(p, d);                    TAC("boundaryConditions"); END_RANGE(BC);     CHECK_STEP("boundaryConditions");
+            BEGIN_RANGE(fluxes); TIC(); numericalFluxes(p, d, prev_dt * dt_factor);  TAC("numericalFluxes");    END_RANGE(fluxes); CHECK_STEP("numericalFluxes");
+            BEGIN_RANGE(update); TIC(); cellUpdate(p, d, prev_dt * dt_factor);       TAC("cellUpdate");         END_RANGE(update); CHECK_STEP("cellUpdate");
+            BEGIN_RANGE(remap);  TIC(); projection_remap(p, d, prev_dt * dt_factor); TAC("euler_proj");         END_RANGE(remap);  CHECK_STEP("projection_remap");
+            END_RANGE(axis);
         }
 
         if (p.verbose <= 1) {
@@ -588,7 +637,13 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd)
         t += prev_dt;
         prev_dt = next_dt;
         cycles++;
+
+        END_RANGE(cycle);
     }
+
+    BEGIN_RANGE(last_fence);
+    Kokkos::fence("last_fence");
+    END_RANGE(last_fence);
 
 end_loop:
 
@@ -613,11 +668,19 @@ end_loop:
 bool armon(Params& params)
 {
     time_contribution.clear();
+    init_nvtx();
 
+    BEGIN_RANGE(init);
+    BEGIN_RANGE(alloc);
     Data data(params.nb_cells, "Armon");
     HostData host_data = (params.compare || params.write_output) ? data.as_mirror() : HostData{0};
+    END_RANGE(alloc);
 
+    BEGIN_RANGE(init_test);
     TIC(); init_test(params, data); TAC("init_test");
+    END_RANGE(init_test);
+    END_RANGE(init);
+
     double grind_time;
     std::tie(grind_time, std::ignore, std::ignore) = time_loop(params, data, host_data);
 

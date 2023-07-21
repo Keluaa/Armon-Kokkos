@@ -26,7 +26,10 @@ add_library(${LIB_NAME_2D}
 target_link_libraries(${LIB_NAME_2D} PRIVATE Kokkos::kokkos)
 target_compile_options(${LIB_NAME_2D} PRIVATE ${OPTIONS})
 
+target_compile_definitions(${LIB_NAME_2D} PUBLIC
+        USE_SINGLE_PRECISION=${PRECISION}
+        USE_NVTX=${NVTX})
+
 add_executable(${EXE_NAME_2D}
         main_2D.cpp)
 target_link_libraries(${EXE_NAME_2D} PRIVATE ${LIB_NAME_2D} PRIVATE Kokkos::kokkos)
-target_compile_definitions(${LIB_NAME_2D} PRIVATE USE_SINGLE_PRECISION=${PRECISION})

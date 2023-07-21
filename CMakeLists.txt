@@ -65,11 +65,18 @@ endif()
 
 # Project Options
 option(USE_SINGLE_PRECISION "Use float instead of double" OFF)
+option(USE_NVTX "Enable NVTX tracing" OFF)
 
 if(USE_SINGLE_PRECISION)
     set(PRECISION 1)
 else()
     set(PRECISION 0)
+endif()
+
+if(USE_NVTX)
+    set(NVTX 1)
+else()
+    set(NVTX 0)
 endif()
 
 

@@ -13,10 +13,10 @@
 extern std::map<std::string, double> time_contribution;
 #define CAT(a, b) a##b
 #define TIC_IMPL(line_nb) auto CAT(tic_, line_nb) = std::chrono::steady_clock::now()
-#define TAC_IMPL(label, line_nb) \
+#define TAC_IMPL(label, line_nb)                                \
     auto CAT(tac_, line_nb) = std::chrono::steady_clock::now(); \
     double CAT(expr_time_, line_nb) = std::chrono::duration<double>(CAT(tac_, line_nb) - CAT(tic_, line_nb)).count(); \
-    time_contribution[label]   += CAT(expr_time_, line_nb); \
+    time_contribution[label]   += CAT(expr_time_, line_nb);     \
     time_contribution["TOTAL"] += CAT(expr_time_, line_nb)
 #define TIC() TIC_IMPL(__LINE__)
 #define TAC(label) TAC_IMPL(label, __LINE__)
