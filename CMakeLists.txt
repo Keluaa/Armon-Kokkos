@@ -10,7 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 # Kokkos Modules
-set(Kokkos_ENABLE_HWLOC ON CACHE BOOL "Kokkos_ENABLE_HWLOC" FORCE)
+set(Kokkos_ENABLE_HWLOC OFF CACHE BOOL "Kokkos_ENABLE_HWLOC" FORCE)
 set(Kokkos_ENABLE_LIBRT OFF CACHE BOOL "Kokkos_ENABLE_LIBRT" FORCE)
 set(Kokkos_ENABLE_LIBDL OFF CACHE BOOL "Kokkos_ENABLE_LIBDL" FORCE)
 
@@ -72,8 +72,14 @@ else()
     set(PRECISION 0)
 endif()
 
+
+if (NOT DEFINED ARMON_KOKKOS_ROOT)
+    set(ARMON_KOKKOS_ROOT "${PROJECT_SOURCE_DIR}/modules/kokkos")
+endif()
+
+
 # Project Modules
-add_subdirectory(modules/kokkos)
+add_subdirectory(${ARMON_KOKKOS_ROOT} lib)
 
 # Project Sources
 include_directories(${Kokkos_INCLUDE_DIRS_RET})

@@ -323,7 +323,8 @@ void boundaryConditions(const Params& p, Data& d)
 
 
 void euler_projection(const Params& p, Data& d, flt_t dt,
-                      view& advection_rho, view& advection_urho, view& advection_vrho, view& advection_Erho)
+                      const view& advection_rho, const view& advection_urho,
+                      const view& advection_vrho, const view& advection_Erho)
 {
     const int s = p.s;
     Kokkos::parallel_for(iter(real_domain(p)),
@@ -374,7 +375,7 @@ KOKKOS_INLINE_FUNCTION flt_t slope_minmod(flt_t u_im, flt_t u_i, flt_t u_ip, flt
 
 
 void advection_second_order(const Params& p, Data& d, flt_t dt,
-                           view& advection_rho, view& advection_urho, view& advection_vrho, view& advection_Erho)
+                            view& advection_rho, view& advection_urho, view& advection_vrho, view& advection_Erho)
 {
     const int s = p.s;
     Kokkos::parallel_for(iter(real_domain_advection(p)),
@@ -611,16 +612,17 @@ end_loop:
 
 bool armon(Params& params)
 {
+    time_contribution.clear();
+
     Data data(params.nb_cells, "Armon");
-    HostData host_data = data.as_mirror();
+    HostData host_data = (params.compare || params.write_output) ? data.as_mirror() : HostData{0};
 
     TIC(); init_test(params, data); TAC("init_test");
     double grind_time;
     std::tie(grind_time, std::ignore, std::ignore) = time_loop(params, data, host_data);
 
-    data.deep_copy_to_mirror(host_data);
-
     if (params.write_output) {
+        data.deep_copy_to_mirror(host_data);
         write_output(params, host_data);
     }
 

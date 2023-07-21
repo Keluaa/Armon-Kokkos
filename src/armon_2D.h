@@ -58,8 +58,8 @@ void boundaryConditions(const Params& p, Data& d, Side side);
 void boundaryConditions(const Params& p, Data& d);
 
 void euler_projection(const Params& p, Data& d, flt_t dt,
-                      view& advection_rho, view& advection_urho,
-                      view& advection_vrho, view& advection_Erho);
+                      const view& advection_rho, const view& advection_urho,
+                      const view& advection_vrho, const view& advection_Erho);
 void advection_first_order(const Params& p, Data& d, flt_t dt,
                            view& advection_rho, view& advection_urho,
                            view& advection_vrho, view& advection_Erho);
