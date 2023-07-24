@@ -152,9 +152,9 @@ void perfectGasEOS(const Params& p, Data& d, flt_t gamma)
 {
     Kokkos::parallel_for(iter(real_domain(p)),
     KOKKOS_LAMBDA(const int i) {
-        flt_t e = d.Emat[i] - flt_t(0.5) * (std::pow(d.umat[i], flt_t(2)) + std::pow(d.vmat[i], flt_t(2)));
+        flt_t e = d.Emat[i] - flt_t(0.5) * (Kokkos::pow(d.umat[i], flt_t(2)) + Kokkos::pow(d.vmat[i], flt_t(2)));
         d.pmat[i] = (gamma - 1) * d.rho[i] * e;
-        d.cmat[i] = std::sqrt(gamma * d.pmat[i] / d.rho[i]);
+        d.cmat[i] = Kokkos::sqrt(gamma * d.pmat[i] / d.rho[i]);
         d.gmat[i] = (1 + gamma) / 2;
     });
 }
@@ -177,17 +177,17 @@ void bizarriumEOS(const Params& p, Data& d)
 
         flt_t eps_k0 = eps0 - Cv0*T0*(1+g) + flt_t(0.5)*(K0/rho0)*(x*x)*f0;
         flt_t pk0 = -Cv0*T0*G0*rho0 + (flt_t(0.5)*K0*x*(1+x)*(1+x)*(2*f0+x*f1));
-        flt_t pk0prime = -flt_t(0.5) * K0 * std::pow(1+x,flt_t(3))
+        flt_t pk0prime = -flt_t(0.5) * K0 * Kokkos::pow(1+x,flt_t(3))
                 * rho0 * (2 * (1+3*x) * f0 + 2*x*(2+3*x) * f1 + (x*x) * (1+x) * f2);
-        flt_t pk0second = flt_t(0.5) * K0 * std::pow(1+x,flt_t(4)) * (rho0*rho0)
+        flt_t pk0second = flt_t(0.5) * K0 * Kokkos::pow(1+x,flt_t(4)) * (rho0*rho0)
                 * (12*(1+2*x)*f0 + 6*(1+6*x+6*(x*x)) * f1 + 6*x*(1+x)*(1+2*x) * f2
-                   + std::pow(x*(1+x),flt_t(2)) * f3);
+                   + Kokkos::pow(x*(1+x),flt_t(2)) * f3);
 
-        flt_t e = d.Emat[i] - flt_t(0.5) * (std::pow(d.umat[i], flt_t(2)) + std::pow(d.vmat[i], flt_t(2)));
+        flt_t e = d.Emat[i] - flt_t(0.5) * (Kokkos::pow(d.umat[i], flt_t(2)) + Kokkos::pow(d.vmat[i], flt_t(2)));
         d.pmat[i] = pk0 + G0*rho0*(e - eps_k0);
-        d.cmat[i] = std::sqrt(G0*rho0*(d.pmat[i] - pk0) - pk0prime) / d.rho[i];
-        d.gmat[i] = flt_t(0.5) / (std::pow(d.rho[i],flt_t(3)) * std::pow(d.cmat[i],flt_t(2)))
-                * (pk0second + std::pow(G0 * rho0,flt_t(2)) * (d.pmat[i]-pk0));
+        d.cmat[i] = Kokkos::sqrt(G0*rho0*(d.pmat[i] - pk0) - pk0prime) / d.rho[i];
+        d.gmat[i] = flt_t(0.5) / (Kokkos::pow(d.rho[i],flt_t(3)) * Kokkos::pow(d.cmat[i],flt_t(2)))
+                * (pk0second + Kokkos::pow(G0 * rho0,flt_t(2)) * (d.pmat[i]-pk0));
     });
 }
 
@@ -407,8 +407,8 @@ KOKKOS_INLINE_FUNCTION flt_t slope_minmod(flt_t u_im, flt_t u_i, flt_t u_ip, flt
 {
     flt_t D_u_p = r_p * (u_ip - u_i );
     flt_t D_u_m = r_m * (u_i  - u_im);
-    flt_t s = std::copysign(flt_t(1), D_u_p);
-    return s * std::max(flt_t(0), std::min(s * D_u_p, s * D_u_m));
+    flt_t s = Kokkos::copysign(flt_t(1), D_u_p);
+    return s * Kokkos::max(flt_t(0), Kokkos::min(s * D_u_p, s * D_u_m));
 }
 
 
@@ -485,17 +485,17 @@ flt_t dtCFL(const Params& p, Data& d, flt_t dta)
     else if (p.projection != Projection::None) {
         Kokkos::parallel_reduce(iter(real_domain(p)),
         KOKKOS_LAMBDA(const int i, flt_t& dt_loop) {
-            flt_t max_cx = std::max(std::abs(d.umat[i] + d.cmat[i]), std::abs(d.umat[i] - d.cmat[i])) * d.domain_mask[i];
-            flt_t max_cy = std::max(std::abs(d.vmat[i] + d.cmat[i]), std::abs(d.vmat[i] - d.cmat[i])) * d.domain_mask[i];
-            dt_loop = std::min(dt_loop, std::min(dx / max_cx, dy / max_cy));
+            flt_t max_cx = Kokkos::max(Kokkos::abs(d.umat[i] + d.cmat[i]), Kokkos::abs(d.umat[i] - d.cmat[i])) * d.domain_mask[i];
+            flt_t max_cy = Kokkos::max(Kokkos::abs(d.vmat[i] + d.cmat[i]), Kokkos::abs(d.vmat[i] - d.cmat[i])) * d.domain_mask[i];
+            dt_loop = Kokkos::min(dt_loop, Kokkos::min(dx / max_cx, dy / max_cy));
         }, Kokkos::Min<flt_t>(dt));
     }
     else {
         Kokkos::parallel_reduce(iter(real_domain(p)),
         KOKKOS_LAMBDA(const int i, flt_t& dt_loop) {
-            dt_loop = std::min(dt_loop, flt_t(1.) / (d.cmat[i] * d.domain_mask[i]));
+            dt_loop = Kokkos::min(dt_loop, flt_t(1.) / (d.cmat[i] * d.domain_mask[i]));
         }, Kokkos::Min<flt_t>(dt));
-        dt *= std::min(dx, dy);
+        dt *= Kokkos::min(dx, dy);
     }
 
     if (!is_ieee754_finite(dt) || dt <= 0)
