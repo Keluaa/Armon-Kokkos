@@ -545,7 +545,7 @@ bool step_checkpoint(const Params& p, const Data& d, HostData& hd, const char* s
 }
 
 
-#define CHECK_STEP(label) if (step_checkpoint(p, d, hd, label, cycles, axis)) goto end_loop
+#define CHECK_STEP(label) if (step_checkpoint(p, d, hd, label, cycles, axis)) return true
 
 
 std::tuple<flt_t, flt_t> conservation_vars(const Params& p, Data& d)
@@ -576,6 +576,24 @@ std::tuple<flt_t, flt_t> conservation_vars(const Params& p, Data& d)
     }
 
     return std::make_tuple(total_mass, total_energy);
+}
+
+
+bool solver_cycle(Params& p, Data& d, HostData& hd, int cycles, flt_t prev_dt)
+{
+    for (auto [axis, dt_factor] : p.split_axes(cycles)) {
+        p.update_axis(axis);
+
+        BEGIN_RANGE(axis);
+        BEGIN_RANGE(EOS);    TIC(); update_EOS(p, d);                            TAC("update_EOS");         END_RANGE(EOS);    CHECK_STEP("update_EOS");
+        BEGIN_RANGE(BC);     TIC(); boundaryConditions(p, d);                    TAC("boundaryConditions"); END_RANGE(BC);     CHECK_STEP("boundaryConditions");
+        BEGIN_RANGE(fluxes); TIC(); numericalFluxes(p, d, prev_dt * dt_factor);  TAC("numericalFluxes");    END_RANGE(fluxes); CHECK_STEP("numericalFluxes");
+        BEGIN_RANGE(update); TIC(); cellUpdate(p, d, prev_dt * dt_factor);       TAC("cellUpdate");         END_RANGE(update); CHECK_STEP("cellUpdate");
+        BEGIN_RANGE(remap);  TIC(); projection_remap(p, d, prev_dt * dt_factor); TAC("euler_proj");         END_RANGE(remap);  CHECK_STEP("projection_remap");
+        END_RANGE(axis);
+    }
+
+    return false;
 }
 
 
@@ -614,17 +632,7 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd)
             prev_dt = next_dt;
         }
 
-        for (auto [axis, dt_factor] : p.split_axes(cycles)) {
-            p.update_axis(axis);
-
-            BEGIN_RANGE(axis);
-            BEGIN_RANGE(EOS);    TIC(); update_EOS(p, d);                            TAC("update_EOS");         END_RANGE(EOS);    CHECK_STEP("update_EOS");
-            BEGIN_RANGE(BC);     TIC(); boundaryConditions(p, d);                    TAC("boundaryConditions"); END_RANGE(BC);     CHECK_STEP("boundaryConditions");
-            BEGIN_RANGE(fluxes); TIC(); numericalFluxes(p, d, prev_dt * dt_factor);  TAC("numericalFluxes");    END_RANGE(fluxes); CHECK_STEP("numericalFluxes");
-            BEGIN_RANGE(update); TIC(); cellUpdate(p, d, prev_dt * dt_factor);       TAC("cellUpdate");         END_RANGE(update); CHECK_STEP("cellUpdate");
-            BEGIN_RANGE(remap);  TIC(); projection_remap(p, d, prev_dt * dt_factor); TAC("euler_proj");         END_RANGE(remap);  CHECK_STEP("projection_remap");
-            END_RANGE(axis);
-        }
+        if (solver_cycle(p, d, hd, cycles, prev_dt)) goto end_loop;
 
         if (p.verbose <= 1) {
             auto [current_mass, current_energy] = conservation_vars(p, d);
@@ -641,9 +649,11 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd)
         END_RANGE(cycle);
     }
 
-    BEGIN_RANGE(last_fence);
-    Kokkos::fence("last_fence");
-    END_RANGE(last_fence);
+    {
+        BEGIN_RANGE(last_fence);
+        Kokkos::fence("last_fence");
+        END_RANGE(last_fence);
+    }
 
 end_loop:
 
