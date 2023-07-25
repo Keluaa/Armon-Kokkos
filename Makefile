@@ -6,6 +6,11 @@ use_nvtx ?= 0
 compiler ?=
 dim ?= 1
 
+extra_cuda ?=
+extra_hip ?=
+extra_omp ?=
+
+
 ifeq ($(use_omp), 1)
 	_omp = -DKokkos_ENABLE_OPENMP=ON
 else
@@ -95,7 +100,7 @@ $(RUN_DIR):
 build-cuda:
 	@mkdir -p ./cmake-build-cuda
 	rm -f ./cmake-build-cuda/CMakeCache.txt
-	cd ./cmake-build-cuda && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DKokkos_ENABLE_CUDA=ON $(comp) $(_omp) $(_simd) $(_flt) $(_nvtx) .. && $(MAKE) $(make_args) clean
+	cd ./cmake-build-cuda && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DKokkos_ENABLE_CUDA=ON $(comp) $(_omp) $(_simd) $(_flt) $(_nvtx) $(extra_cuda) .. && $(MAKE) $(make_args) clean
 
 run-cuda: ./cmake-build-cuda/src/armon_cuda$(_dim).exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-cuda/src/armon_cuda$(_dim).exe $(args_)
@@ -103,7 +108,7 @@ run-cuda: ./cmake-build-cuda/src/armon_cuda$(_dim).exe $(RUN_DIR)
 build-hip:
 	@mkdir -p ./cmake-build-hip
 	rm -f ./cmake-build-hip/CMakeCache.txt
-	cd ./cmake-build-hip  && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DCMAKE_CXX_COMPILER=$(hip_compiler) -DKokkos_ENABLE_HIP=ON $(_omp) $(_simd) $(_flt) .. && $(MAKE) $(make_args) clean
+	cd ./cmake-build-hip  && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DCMAKE_CXX_COMPILER=$(hip_compiler) -DKokkos_ENABLE_HIP=ON $(_omp) $(_simd) $(_flt) $(extra_hip) .. && $(MAKE) $(make_args) clean
 
 run-hip: ./cmake-build-hip/src/armon_hip$(_dim).exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-hip/src/armon_hip$(_dim).exe $(args_)
@@ -111,7 +116,7 @@ run-hip: ./cmake-build-hip/src/armon_hip$(_dim).exe $(RUN_DIR)
 build-omp:
 	@mkdir -p ./cmake-build-openmp
 	rm -f ./cmake-build-openmp/CMakeCache.txt
-	cd ./cmake-build-openmp && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DKokkos_ENABLE_OPENMP=ON $(comp) $(_simd) $(_flt) .. && $(MAKE) $(make_args) clean
+	cd ./cmake-build-openmp && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DKokkos_ENABLE_OPENMP=ON $(comp) $(_simd) $(_flt) $(extra_omp) .. && $(MAKE) $(make_args) clean
 
 run-omp: ./cmake-build-openmp/src/armon_openmp$(_dim).exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-openmp/src/armon_openmp$(_dim).exe $(args_)
