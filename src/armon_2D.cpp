@@ -67,14 +67,16 @@ KOKKOS_INLINE_FUNCTION std::tuple<flt_t, flt_t> acoustic_Godunov(
 
 void acoustic(const Params& p, Data& d, const view& u)
 {
-    const int s = p.s;
+    UNPACK_FIELDS(d, rho, cmat, pmat, ustar, pstar);
+    UNPACK_FIELDS(p, s);
+
     Kokkos::parallel_for(iter(real_domain_fluxes(p)),
     KOKKOS_LAMBDA(const int i) {
         auto [ustar_i, pstar_i] = acoustic_Godunov(
-            d.rho[i], d.rho[i-s], d.cmat[i], d.cmat[i-s],
-                u[i],     u[i-s], d.pmat[i], d.pmat[i-s]);
-        d.ustar[i] = ustar_i;
-        d.pstar[i] = pstar_i;
+            rho[i], rho[i-s], cmat[i], cmat[i-s],
+              u[i],   u[i-s], pmat[i], pmat[i-s]);
+        ustar[i] = ustar_i;
+        pstar[i] = pstar_i;
     });
 }
 
@@ -82,48 +84,48 @@ void acoustic(const Params& p, Data& d, const view& u)
 template<Limiter L>
 void acoustic_GAD(const Params& p, Data& d, flt_t dt, const view& u)
 {
-    const int s = p.s;
-    const flt_t dx = p.dx;
+    UNPACK_FIELDS(d, rho, cmat, pmat, ustar, pstar);
+    UNPACK_FIELDS(p, s, dx);
 
     Kokkos::parallel_for(iter(real_domain_fluxes(p)),
     KOKKOS_LAMBDA(const int i) {
         // First order acoustic solver on the left cell
         auto [ustar_im, pstar_im] = acoustic_Godunov(
-                d.rho[i-s], d.rho[i-2*s], d.cmat[i-s], d.cmat[i-2*s],
-                    u[i-s],     u[i-2*s], d.pmat[i-s], d.pmat[i-2*s]);
+            rho[i-s], rho[i-2*s], cmat[i-s], cmat[i-2*s],
+              u[i-s],   u[i-2*s], pmat[i-s], pmat[i-2*s]);
 
         // First order acoustic solver on the current cell
         auto [ustar_i, pstar_i] = acoustic_Godunov(
-                d.rho[i], d.rho[i-s], d.cmat[i], d.cmat[i-s],
-                    u[i],     u[i-s], d.pmat[i], d.pmat[i-s]);
+            rho[i], rho[i-s], cmat[i], cmat[i-s],
+              u[i],   u[i-s], pmat[i], pmat[i-s]);
 
         // First order acoustic solver on the right cell
         auto [ustar_ip, pstar_ip] = acoustic_Godunov(
-                d.rho[i+s], d.rho[i], d.cmat[i+s], d.cmat[i],
-                    u[i+s],     u[i], d.pmat[i+s], d.pmat[i]);
+            rho[i+s], rho[i], cmat[i+s], cmat[i],
+              u[i+s],   u[i], pmat[i+s], pmat[i]);
 
         // Second order GAD acoustic solver on the current cell
 
-        flt_t r_um = (ustar_ip -        u[i]) / (ustar_i -      u[i-s] + flt_t(1e-6));
-        flt_t r_pm = (pstar_ip -   d.pmat[i]) / (pstar_i - d.pmat[i-s] + flt_t(1e-6));
-        flt_t r_up = (     u[i-s] - ustar_im) / (     u[i] -   ustar_i + flt_t(1e-6));
-        flt_t r_pp = (d.pmat[i-s] - pstar_im) / (d.pmat[i] -   pstar_i + flt_t(1e-6));
+        flt_t r_um = (ustar_ip -      u[i]) / (ustar_i -    u[i-s] + flt_t(1e-6));
+        flt_t r_pm = (pstar_ip -   pmat[i]) / (pstar_i - pmat[i-s] + flt_t(1e-6));
+        flt_t r_up = (   u[i-s] - ustar_im) / (   u[i] -   ustar_i + flt_t(1e-6));
+        flt_t r_pp = (pmat[i-s] - pstar_im) / (pmat[i] -   pstar_i + flt_t(1e-6));
 
         r_um = limiter<L>(r_um);
         r_pm = limiter<L>(r_pm);
         r_up = limiter<L>(r_up);
         r_pp = limiter<L>(r_pp);
 
-        flt_t dm_l = d.rho[i-s] * dx;
-        flt_t dm_r = d.rho[i]   * dx;
+        flt_t dm_l = rho[i-s] * dx;
+        flt_t dm_r = rho[i]   * dx;
         flt_t Dm   = (dm_l + dm_r) / 2;
 
-        flt_t rc_l  = d.rho[i-s] * d.cmat[i-s];
-        flt_t rc_r  = d.rho[i]   * d.cmat[i];
+        flt_t rc_l  = rho[i-s] * cmat[i-s];
+        flt_t rc_r  = rho[i]   * cmat[i];
         flt_t theta = flt_t(0.5) * (1 - (rc_l + rc_r) / 2 * (dt / Dm));
 
-        d.ustar[i] = ustar_i + theta * (r_up * (     u[i] - ustar_i) - r_um * (ustar_i -      u[i-s]));
-        d.pstar[i] = pstar_i + theta * (r_pp * (d.pmat[i] - pstar_i) - r_pm * (pstar_i - d.pmat[i-s]));
+        ustar[i] = ustar_i + theta * (r_up * (   u[i] - ustar_i) - r_um * (ustar_i -    u[i-s]));
+        pstar[i] = pstar_i + theta * (r_pp * (pmat[i] - pstar_i) - r_pm * (pstar_i - pmat[i-s]));
     });
 }
 
@@ -150,12 +152,14 @@ void numericalFluxes(const Params& p, Data& d, flt_t dt)
 
 void perfectGasEOS(const Params& p, Data& d, flt_t gamma)
 {
+    UNPACK_FIELDS(d, rho, Emat, umat, vmat, pmat, cmat, gmat);
+
     Kokkos::parallel_for(iter(real_domain(p)),
     KOKKOS_LAMBDA(const int i) {
-        flt_t e = d.Emat[i] - flt_t(0.5) * (Kokkos::pow(d.umat[i], flt_t(2)) + Kokkos::pow(d.vmat[i], flt_t(2)));
-        d.pmat[i] = (gamma - 1) * d.rho[i] * e;
-        d.cmat[i] = Kokkos::sqrt(gamma * d.pmat[i] / d.rho[i]);
-        d.gmat[i] = (1 + gamma) / 2;
+        flt_t e = Emat[i] - flt_t(0.5) * (Kokkos::pow(umat[i], flt_t(2)) + Kokkos::pow(vmat[i], flt_t(2)));
+        pmat[i] = (gamma - 1) * rho[i] * e;
+        cmat[i] = Kokkos::sqrt(gamma * pmat[i] / rho[i]);
+        gmat[i] = (1 + gamma) / 2;
     });
 }
 
@@ -164,11 +168,12 @@ void bizarriumEOS(const Params& p, Data& d)
 {
     const flt_t rho0 = 1e4, K0 = 1e11, Cv0 = 1e3, T0 = 300, eps0 = 0;
     const flt_t G0 = 1.5, s = 1.5, q = -42080895./14941154., r = 727668333./149411540.;
+    UNPACK_FIELDS(d, rho, Emat, umat, vmat, pmat, cmat, gmat);
 
     Kokkos::parallel_for(iter(real_domain(p)),
-    KOKKOS_LAMBDA(const int i){
-        flt_t x = d.rho[i] / rho0 - 1;
-        flt_t g = G0 * (1 - rho0 / d.rho[i]);
+    KOKKOS_LAMBDA(const int i) {
+        flt_t x = rho[i] / rho0 - 1;
+        flt_t g = G0 * (1 - rho0 / rho[i]);
 
         flt_t f0 = (1+(s/3-2)*x+q*(x*x)+r*(x*x*x))/(1-s*x);
         flt_t f1 = (s/3-2+2*q*x+3*r*(x*x)+s*f0)/(1-s*x);
@@ -183,11 +188,11 @@ void bizarriumEOS(const Params& p, Data& d)
                 * (12*(1+2*x)*f0 + 6*(1+6*x+6*(x*x)) * f1 + 6*x*(1+x)*(1+2*x) * f2
                    + Kokkos::pow(x*(1+x),flt_t(2)) * f3);
 
-        flt_t e = d.Emat[i] - flt_t(0.5) * (Kokkos::pow(d.umat[i], flt_t(2)) + Kokkos::pow(d.vmat[i], flt_t(2)));
-        d.pmat[i] = pk0 + G0*rho0*(e - eps_k0);
-        d.cmat[i] = Kokkos::sqrt(G0*rho0*(d.pmat[i] - pk0) - pk0prime) / d.rho[i];
-        d.gmat[i] = flt_t(0.5) / (Kokkos::pow(d.rho[i],flt_t(3)) * Kokkos::pow(d.cmat[i],flt_t(2)))
-                * (pk0second + Kokkos::pow(G0 * rho0,flt_t(2)) * (d.pmat[i]-pk0));
+        flt_t e = Emat[i] - flt_t(0.5) * (Kokkos::pow(umat[i], flt_t(2)) + Kokkos::pow(vmat[i], flt_t(2)));
+        pmat[i] = pk0 + G0*rho0*(e - eps_k0);
+        cmat[i] = Kokkos::sqrt(G0*rho0*(pmat[i] - pk0) - pk0prime) / rho[i];
+        gmat[i] = flt_t(0.5) / (Kokkos::pow(rho[i],flt_t(3)) * Kokkos::pow(cmat[i],flt_t(2)))
+                * (pk0second + Kokkos::pow(G0 * rho0,flt_t(2)) * (pmat[i]-pk0));
     });
 }
 
@@ -212,24 +217,25 @@ void update_EOS(const Params& p, Data& d)
 
 void cellUpdate(const Params& p, Data& d, flt_t dt)
 {
-    const int s = p.s;
-    const flt_t dx = p.dx;
     view& u = p.current_axis == Axis::X ? d.umat : d.vmat;
     view& x = p.current_axis == Axis::X ? d.x : d.y;
 
+    UNPACK_FIELDS(d, rho, Emat, ustar, pstar, domain_mask);
+    UNPACK_FIELDS(p, s, dx);
+
     Kokkos::parallel_for(iter(real_domain(p)),
     KOKKOS_LAMBDA(const int i) {
-        flt_t mask = d.domain_mask[i];
-        flt_t dm = d.rho[i] * dx;
-        d.rho[i]   = dm / (dx + dt * (d.ustar[i+s] - d.ustar[i]) * mask);
-        u[i]      += dt / dm * (d.pstar[i]              - d.pstar[i+s]               ) * mask;
-        d.Emat[i] += dt / dm * (d.pstar[i] * d.ustar[i] - d.pstar[i+s] * d.ustar[i+s]) * mask;
+        flt_t mask = domain_mask[i];
+        flt_t dm = rho[i] * dx;
+        rho[i]   = dm / (dx + dt * (ustar[i+s] - ustar[i]) * mask);
+        u[i]    += dt / dm * (pstar[i]            - pstar[i+s]             ) * mask;
+        Emat[i] += dt / dm * (pstar[i] * ustar[i] - pstar[i+s] * ustar[i+s]) * mask;
     });
 
     if (p.projection == Projection::None) {
         Kokkos::parallel_for(iter(real_domain(p)),
         KOKKOS_LAMBDA(const int i) {
-            x[i] += dt * d.ustar[i];
+            x[i] += dt * ustar[i];
         });
     }
 }
@@ -248,45 +254,46 @@ void init_test(const Params& p, Data& d)
     bool one_more_ring = p.single_comm_per_axis_pass;
     int r = p.extra_ring_width;
 
+    UNPACK_FIELDS(d, x, y, rho, Emat, umat, vmat, domain_mask, pmat, cmat, ustar, pstar);
+    UNPACK_FIELDS(p, row_length, nb_ghosts, nx, ny, test);
+
     Kokkos::parallel_for(iter(all_cells(p)),
     KOKKOS_LAMBDA(const int i) {
-        int ix = (i % p.row_length) - p.nb_ghosts;
-        int iy = (i / p.row_length) - p.nb_ghosts;
+        int ix = (i % row_length) - nb_ghosts;
+        int iy = (i / row_length) - nb_ghosts;
 
-        d.x[i] = flt_t(ix) / flt_t(p.nx) * sx + ox;
-        d.y[i] = flt_t(iy) / flt_t(p.ny) * sy + oy;
+        x[i] = flt_t(ix) / flt_t(nx) * sx + ox;
+        y[i] = flt_t(iy) / flt_t(ny) * sy + oy;
 
-        flt_t x_mid = d.x[i] + sx / (2 * p.nx);
-        flt_t y_mid = d.y[i] + sy / (2 * p.ny);
+        flt_t x_mid = x[i] + sx / (2 * nx);
+        flt_t y_mid = y[i] + sy / (2 * ny);
 
-        if (test_region_high(p.test, x_mid, y_mid)) {
-            d.rho[i] = tp.high_rho;
-            d.Emat[i] = tp.high_p / ((tp.gamma - flt_t(1)) * d.rho[i]);
-            d.umat[i] = tp.high_u;
-            d.vmat[i] = tp.high_v;
-        }
-        else {
-            d.rho[i] = tp.low_rho;
-            d.Emat[i] = tp.low_p / ((tp.gamma - flt_t(1)) * d.rho[i]);
-            d.umat[i] = tp.low_u;
-            d.vmat[i] = tp.low_v;
+        if (test_region_high(test, x_mid, y_mid)) {
+            rho[i] = tp.high_rho;
+            Emat[i] = tp.high_p / ((tp.gamma - flt_t(1)) * rho[i]);
+            umat[i] = tp.high_u;
+            vmat[i] = tp.high_v;
+        } else {
+            rho[i] = tp.low_rho;
+            Emat[i] = tp.low_p / ((tp.gamma - flt_t(1)) * rho[i]);
+            umat[i] = tp.low_u;
+            vmat[i] = tp.low_v;
         }
 
         if (one_more_ring) {
-            d.domain_mask[i] = (
-                   ((-r <= ix) && (ix < p.nx+r) && (-r <= iy) && (iy < p.ny+r))  // Include as well a ring of ghost cells...
-                && (( 0 <= ix) && (ix < p.nx)   || (0  <= iy) && (iy < p.ny)  )  // ...while excluding the corners of the subdomain
+            domain_mask[i] = (
+                   ((-r <= ix) && (ix < nx+r) && (-r <= iy) && (iy < ny+r))  // Include as well a ring of ghost cells...
+                && (( 0 <= ix) && (ix < nx)   || (0  <= iy) && (iy < ny)  )  // ...while excluding the corners of the subdomain
             );
-        }
-        else {
-            d.domain_mask[i] = (0 <= ix && ix < p.nx && 0 <= iy && iy < p.ny);
+        } else {
+            domain_mask[i] = (0 <= ix && ix < nx && 0 <= iy && iy < ny);
         }
 
         // Set to zero to make sure no non-initialized values changes the result
-        d.pmat[i] = 0;
-        d.cmat[i] = 1;  // Set to 1 as a max speed of 0 will create NaNs
-        d.ustar[i] = 0;
-        d.pstar[i] = 0;
+        pmat[i] = 0;
+        cmat[i] = 1;  // Set to 1 as a max speed of 0 will create NaNs
+        ustar[i] = 0;
+        pstar[i] = 0;
     });
 }
 
@@ -329,18 +336,21 @@ void boundaryConditions(const Params& p, Data& d, Side side)
         break;
     }
 
+    UNPACK_FIELDS(d, rho, umat, vmat, pmat, cmat, gmat);
+    UNPACK_FIELDS(p, stencil_width);
+
     Kokkos::parallel_for(iter(zero_to(loop_range - 1)),
     KOKKOS_LAMBDA(const int idx) {
         int i = idx * stride + i_start;
         int ip = i + disp;
 
-        for (int w = 0; w < p.stencil_width; w++) {
-            d.rho[i]  = d.rho[ip];
-            d.umat[i] = d.umat[ip] * u_factor;
-            d.vmat[i] = d.vmat[ip] * v_factor;
-            d.pmat[i] = d.pmat[ip];
-            d.cmat[i] = d.cmat[ip];
-            d.gmat[i] = d.gmat[ip];
+        for (int w = 0; w < stencil_width; w++) {
+            rho[i]  = rho[ip];
+            umat[i] = umat[ip] * u_factor;
+            vmat[i] = vmat[ip] * v_factor;
+            pmat[i] = pmat[ip];
+            cmat[i] = cmat[ip];
+            gmat[i] = gmat[ip];
 
             i  -= disp;
             ip += disp;
@@ -364,21 +374,23 @@ void euler_projection(const Params& p, Data& d, flt_t dt,
                       const view& advection_rho, const view& advection_urho,
                       const view& advection_vrho, const view& advection_Erho)
 {
-    const int s = p.s;
+    UNPACK_FIELDS(d, rho, umat, vmat, Emat, ustar, domain_mask);
+    UNPACK_FIELDS(p, dx, s);
+
     Kokkos::parallel_for(iter(real_domain(p)),
     KOKKOS_LAMBDA(const int i) {
-        flt_t mask = d.domain_mask[i];
-        flt_t dX = p.dx + dt * (d.ustar[i+s] - d.ustar[i]) * mask;
+        flt_t mask = domain_mask[i];
+        flt_t dX = dx + dt * (ustar[i+s] - ustar[i]) * mask;
 
-        flt_t tmp_rho  = (dX * d.rho[i]             - mask * (advection_rho[i+s]  - advection_rho[i] )) / p.dx;
-        flt_t tmp_urho = (dX * d.rho[i] * d.umat[i] - mask * (advection_urho[i+s] - advection_urho[i])) / p.dx;
-        flt_t tmp_vrho = (dX * d.rho[i] * d.vmat[i] - mask * (advection_vrho[i+s] - advection_vrho[i])) / p.dx;
-        flt_t tmp_Erho = (dX * d.rho[i] * d.Emat[i] - mask * (advection_Erho[i+s] - advection_Erho[i])) / p.dx;
+        flt_t tmp_rho  = (dX * rho[i]           - mask * (advection_rho[i+s]  - advection_rho[i] )) / dx;
+        flt_t tmp_urho = (dX * rho[i] * umat[i] - mask * (advection_urho[i+s] - advection_urho[i])) / dx;
+        flt_t tmp_vrho = (dX * rho[i] * vmat[i] - mask * (advection_vrho[i+s] - advection_vrho[i])) / dx;
+        flt_t tmp_Erho = (dX * rho[i] * Emat[i] - mask * (advection_Erho[i+s] - advection_Erho[i])) / dx;
 
-        d.rho[i]  = tmp_rho;
-        d.umat[i] = tmp_urho / tmp_rho;
-        d.vmat[i] = tmp_vrho / tmp_rho;
-        d.Emat[i] = tmp_Erho / tmp_rho;
+        rho[i]  = tmp_rho;
+        umat[i] = tmp_urho / tmp_rho;
+        vmat[i] = tmp_vrho / tmp_rho;
+        Emat[i] = tmp_Erho / tmp_rho;
     });
 }
 
@@ -386,19 +398,21 @@ void euler_projection(const Params& p, Data& d, flt_t dt,
 void advection_first_order(const Params& p, Data& d, flt_t dt,
                            view& advection_rho, view& advection_urho, view& advection_vrho, view& advection_Erho)
 {
-    const int s = p.s;
+    UNPACK_FIELDS(d, rho, umat, vmat, Emat, ustar);
+    UNPACK_FIELDS(p, s);
+
     Kokkos::parallel_for(iter(real_domain_advection(p)),
     KOKKOS_LAMBDA(const int idx) {
         int i = idx;
-        flt_t disp = dt * d.ustar[i];
+        flt_t disp = dt * ustar[i];
         if (disp > 0) {
             i = idx - s;
         }
 
-        advection_rho[idx]  = disp * (d.rho[i]            );
-        advection_urho[idx] = disp * (d.rho[i] * d.umat[i]);
-        advection_vrho[idx] = disp * (d.rho[i] * d.vmat[i]);
-        advection_Erho[idx] = disp * (d.rho[i] * d.Emat[i]);
+        advection_rho[idx]  = disp * (rho[i]          );
+        advection_urho[idx] = disp * (rho[i] * umat[i]);
+        advection_vrho[idx] = disp * (rho[i] * vmat[i]);
+        advection_Erho[idx] = disp * (rho[i] * Emat[i]);
     });
 }
 
@@ -415,36 +429,38 @@ KOKKOS_INLINE_FUNCTION flt_t slope_minmod(flt_t u_im, flt_t u_i, flt_t u_ip, flt
 void advection_second_order(const Params& p, Data& d, flt_t dt,
                             view& advection_rho, view& advection_urho, view& advection_vrho, view& advection_Erho)
 {
-    const int s = p.s;
+    UNPACK_FIELDS(d, rho, umat, vmat, Emat, ustar);
+    UNPACK_FIELDS(p, s, dx);
+
     Kokkos::parallel_for(iter(real_domain_advection(p)),
     KOKKOS_LAMBDA(const int idx) {
         int i = idx;
-        flt_t disp = dt * d.ustar[i];
+        flt_t disp = dt * ustar[i];
         flt_t Dx;
         if (disp > 0) {
-            Dx = -(p.dx - dt * d.ustar[i-s]);
+            Dx = -(dx - dt * ustar[i-s]);
             i = idx - s;
         } else {
-            Dx = p.dx + dt * d.ustar[i+s];
+            Dx = dx + dt * ustar[i+s];
         }
 
-        flt_t Dx_lm = p.dx + dt * (d.ustar[i]     - d.ustar[i-s]);
-        flt_t Dx_l  = p.dx + dt * (d.ustar[i+s]   - d.ustar[i]  );
-        flt_t Dx_lp = p.dx + dt * (d.ustar[i+2*s] - d.ustar[i+s]);
+        flt_t Dx_lm = dx + dt * (ustar[i]     - ustar[i-s]);
+        flt_t Dx_l  = dx + dt * (ustar[i+s]   - ustar[i]  );
+        flt_t Dx_lp = dx + dt * (ustar[i+2*s] - ustar[i+s]);
 
         flt_t r_m = (2 * Dx_l) / (Dx_l + Dx_lm);
         flt_t r_p = (2 * Dx_l) / (Dx_l + Dx_lp);
 
-        flt_t slope_r  = slope_minmod(d.rho[i-s]              , d.rho[i]            , d.rho[i+s]              , r_m, r_p);
-        flt_t slope_ur = slope_minmod(d.rho[i-s] * d.umat[i-s], d.rho[i] * d.umat[i], d.rho[i+s] * d.umat[i+s], r_m, r_p);
-        flt_t slope_vr = slope_minmod(d.rho[i-s] * d.vmat[i-s], d.rho[i] * d.vmat[i], d.rho[i+s] * d.vmat[i+s], r_m, r_p);
-        flt_t slope_Er = slope_minmod(d.rho[i-s] * d.Emat[i-s], d.rho[i] * d.Emat[i], d.rho[i+s] * d.Emat[i+s], r_m, r_p);
+        flt_t slope_r  = slope_minmod(rho[i-s]            , rho[i]          , rho[i+s]            , r_m, r_p);
+        flt_t slope_ur = slope_minmod(rho[i-s] * umat[i-s], rho[i] * umat[i], rho[i+s] * umat[i+s], r_m, r_p);
+        flt_t slope_vr = slope_minmod(rho[i-s] * vmat[i-s], rho[i] * vmat[i], rho[i+s] * vmat[i+s], r_m, r_p);
+        flt_t slope_Er = slope_minmod(rho[i-s] * Emat[i-s], rho[i] * Emat[i], rho[i+s] * Emat[i+s], r_m, r_p);
 
         flt_t length_factor = Dx / (2 * Dx_l);
-        advection_rho[idx]  = disp * (d.rho[i]             - slope_r  * length_factor);
-        advection_urho[idx] = disp * (d.rho[i] * d.umat[i] - slope_ur * length_factor);
-        advection_vrho[idx] = disp * (d.rho[i] * d.vmat[i] - slope_vr * length_factor);
-        advection_Erho[idx] = disp * (d.rho[i] * d.Emat[i] - slope_Er * length_factor);
+        advection_rho[idx]  = disp * (rho[i]           - slope_r  * length_factor);
+        advection_urho[idx] = disp * (rho[i] * umat[i] - slope_ur * length_factor);
+        advection_vrho[idx] = disp * (rho[i] * vmat[i] - slope_vr * length_factor);
+        advection_Erho[idx] = disp * (rho[i] * Emat[i] - slope_Er * length_factor);
     });
 }
 
@@ -481,19 +497,19 @@ flt_t dtCFL(const Params& p, Data& d, flt_t dta)
 
     if (p.cst_dt) {
         return p.Dt;
-    }
-    else if (p.projection != Projection::None) {
+    } else if (p.projection != Projection::None) {
+        UNPACK_FIELDS(d, umat, vmat, cmat, domain_mask);
         Kokkos::parallel_reduce(iter(real_domain(p)),
         KOKKOS_LAMBDA(const int i, flt_t& dt_loop) {
-            flt_t max_cx = Kokkos::max(Kokkos::abs(d.umat[i] + d.cmat[i]), Kokkos::abs(d.umat[i] - d.cmat[i])) * d.domain_mask[i];
-            flt_t max_cy = Kokkos::max(Kokkos::abs(d.vmat[i] + d.cmat[i]), Kokkos::abs(d.vmat[i] - d.cmat[i])) * d.domain_mask[i];
+            flt_t max_cx = Kokkos::max(Kokkos::abs(umat[i] + cmat[i]), Kokkos::abs(umat[i] - cmat[i])) * domain_mask[i];
+            flt_t max_cy = Kokkos::max(Kokkos::abs(vmat[i] + cmat[i]), Kokkos::abs(vmat[i] - cmat[i])) * domain_mask[i];
             dt_loop = Kokkos::min(dt_loop, Kokkos::min(dx / max_cx, dy / max_cy));
         }, Kokkos::Min<flt_t>(dt));
-    }
-    else {
+    } else {
+        UNPACK_FIELDS(d, cmat, domain_mask);
         Kokkos::parallel_reduce(iter(real_domain(p)),
         KOKKOS_LAMBDA(const int i, flt_t& dt_loop) {
-            dt_loop = Kokkos::min(dt_loop, flt_t(1.) / (d.cmat[i] * d.domain_mask[i]));
+            dt_loop = Kokkos::min(dt_loop, flt_t(1.) / (cmat[i] * domain_mask[i]));
         }, Kokkos::Min<flt_t>(dt));
         dt *= Kokkos::min(dx, dy);
     }
@@ -555,21 +571,22 @@ std::tuple<flt_t, flt_t> conservation_vars(const Params& p, Data& d)
 
     if (p.projection == Projection::None) {
         int s = p.row_length;
+        UNPACK_FIELDS(d, x, y, rho, Emat, domain_mask);
         Kokkos::parallel_reduce(iter(real_domain(p)),
         KOKKOS_LAMBDA(const int i, flt_t& mass, flt_t& energy) {
-            flt_t ds = (d.x[i+1] - d.x[i]) * (d.y[i+s] - d.y[i]);
-            flt_t cell_mass = d.rho[i] * ds * d.domain_mask[i];
-            flt_t cell_energy = cell_mass * d.Emat[i];
+            flt_t ds = (x[i+1] - x[i]) * (y[i+s] - y[i]);
+            flt_t cell_mass = rho[i] * ds * domain_mask[i];
+            flt_t cell_energy = cell_mass * Emat[i];
             mass += cell_mass;
             energy += cell_energy;
         }, Kokkos::Sum<flt_t>(total_mass), Kokkos::Sum<flt_t>(total_energy));
-    }
-    else {
+    } else {
         flt_t ds = p.dx * p.dx;
+        UNPACK_FIELDS(d, x, y, rho, Emat, domain_mask);
         Kokkos::parallel_reduce(iter(real_domain(p)),
         KOKKOS_LAMBDA(const int i, flt_t& mass, flt_t& energy) {
-            flt_t cell_mass = d.rho[i] * d.domain_mask[i] * ds;
-            flt_t cell_energy = cell_mass * d.Emat[i];
+            flt_t cell_mass = rho[i] * domain_mask[i] * ds;
+            flt_t cell_energy = cell_mass * Emat[i];
             mass += cell_mass;
             energy += cell_energy;
         }, Kokkos::Sum<flt_t>(total_mass), Kokkos::Sum<flt_t>(total_energy));
