@@ -7,23 +7,18 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math")
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
-endif()
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 # Kokkos Modules
 set(Kokkos_ENABLE_HWLOC OFF CACHE BOOL "Kokkos_ENABLE_HWLOC" FORCE)
 set(Kokkos_ENABLE_LIBRT OFF CACHE BOOL "Kokkos_ENABLE_LIBRT" FORCE)
-set(Kokkos_ENABLE_LIBDL OFF CACHE BOOL "Kokkos_ENABLE_LIBDL" FORCE)
+set(Kokkos_ENABLE_LIBDL ON CACHE BOOL "Kokkos_ENABLE_LIBDL" FORCE)
 
 if(Kokkos_ENABLE_HIP)
-    set(Kokkos_ARCH_VEGA908 ON) # Mi100 GPU
-    #set(Kokkos_ARCH_VEGA90A ON) # Mi250 GPU
-
-    if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(Kokkos_ENABLE_HIP_MULTIPLE_KERNEL_INSTANTIATIONS ON CACHE BOOL "Kokkos_ENABLE_HIP_MULTIPLE_KERNEL_INSTANTIATIONS" FORCE)
+    execute_process(COMMAND hostname RESULT_VARIABLE HOSTNAME)
+    if(HOSTNAME MATCHES "^login")
+        set(Kokkos_ARCH_VEGA908 ON)  # MI100
+        # set(Kokkos_ARCH_VEGA90A ON)  # MI250
     endif()
 endif()
 
@@ -39,9 +34,6 @@ if(Kokkos_ENABLE_CUDA)
 endif()
 
 if(Kokkos_ENABLE_OPENMP)
-    # Some functions used in the Kokkos OpenMP backend are marked as deprecated, this is to remove the warnings about them
-#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
-
     set(Kokkos_ENABLE_AGGRESSIVE_VECTORIZATION ON CACHE BOOL "Kokkos_ENABLE_AGGRESSIVE_VECTORIZATION" FORCE)
 endif()
 

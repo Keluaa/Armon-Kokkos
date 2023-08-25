@@ -63,6 +63,7 @@ std::tuple<dim3d, dim3d> get_block_and_grid_size_reduction(const Policy& policy)
 }
 
 #else
+/*
 #ifdef KOKKOS_ENABLE_HIP
 
 template<typename Policy>
@@ -104,8 +105,8 @@ std::tuple<dim3d, dim3d> get_block_and_grid_size_reduction(const Policy& policy)
 
     return std::make_tuple(block, grid);
 }
-
 #else
+*/
 
 template<typename Policy>
 std::tuple<dim3d, dim3d> get_block_and_grid_size(const Policy&)
@@ -115,7 +116,7 @@ template<typename Policy>
 std::tuple<dim3d, dim3d> get_block_and_grid_size_reduction(const Policy&)
 { return std::make_tuple(dim3d{1, 1, 1}, dim3d{1, 1, 1}); }
 
-#endif // KOKKOS_ENABLE_HIP
+//#endif // KOKKOS_ENABLE_HIP
 #endif // KOKKOS_ENABLE_CUDA
 
 

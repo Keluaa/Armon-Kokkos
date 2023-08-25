@@ -40,7 +40,7 @@ ifeq ($(compiler), icc)
 else ifeq ($(compiler), gcc)
 	comp = -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
 else ifeq ($(compiler), clang)
-	comp = -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+	comp = -DCMAKE_C_COMPILER=clang-11 -DCMAKE_CXX_COMPILER=clang++-11
 else ifeq ($(compiler),)
 $(info "Using default CMake compiler")
 else 
