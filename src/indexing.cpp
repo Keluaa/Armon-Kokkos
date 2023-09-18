@@ -52,16 +52,3 @@ std::tuple<int, int> all_cells(const Params& p)
 {
     return zero_to(p.nb_cells - 1);
 }
-
-
-Kokkos::RangePolicy<Index_t> iter(std::tuple<int, int>&& range)
-{
-    auto [deb, fin] = range;
-    return {deb, fin+1}; // +1 as RangePolicy is an open interval
-}
-
-
-Kokkos::RangePolicy<Index_t> iter(std::tuple<int, int>& range)
-{
-    return iter(std::forward<std::tuple<int, int>>(range));
-}

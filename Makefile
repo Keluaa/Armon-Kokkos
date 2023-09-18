@@ -18,9 +18,9 @@ else
 endif
 
 ifeq ($(use_simd), 1)
-	_simd = -DKokkos_ENABLE_SIMD=ON
+	_simd = -DKokkos_ENABLE_SIMD=ON -DUSE_SIMD_KERNELS=ON
 else
-	_simd = -DKokkos_ENABLE_SIMD=OFF
+	_simd = -DKokkos_ENABLE_SIMD=OFF -DUSE_SIMD_KERNELS=OFF
 endif
 
 ifeq ($(use_single), 1)

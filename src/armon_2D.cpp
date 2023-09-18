@@ -50,6 +50,43 @@ void init_nvtx() {}
 #endif
 
 
+template<typename Functor>
+void parallel_kernel(const std::tuple<int, int>& range, const Functor& functor)
+{
+#if USE_SIMD_KERNELS
+    Kokkos::parallel_for(iter_simd(range),
+    KOKKOS_LAMBDA(const Team_t& team) {
+        const auto team_i = iter_team_start(team, range);
+        const auto team_vector_range = Kokkos::ThreadVectorRange(team, team_i, team_i + team.team_size());
+        Kokkos::parallel_for(team_vector_range, functor);
+    });
+#else
+    Kokkos::parallel_for(iter(range), functor);
+#endif  // USE_SIMD_KERNELS
+}
+
+
+template<typename Functor, typename Reducer>
+void parallel_reduce_kernel(const std::tuple<int, int>& range, const Functor& functor, const Reducer& return_value)
+{
+#if USE_SIMD_KERNELS
+    const auto default_value = return_value.reference();
+    Kokkos::parallel_reduce(iter_simd(range),
+    KOKKOS_LAMBDA(const Team_t& team, flt_t& result) {
+        const auto team_i = iter_team_start(team, range);
+        typename Reducer::value_type team_result = default_value;
+        const auto team_vector_range = Kokkos::ThreadVectorRange(team, team_i, team_i + team.team_size());
+        Kokkos::parallel_reduce(team_vector_range, functor, Reducer(team_result));
+        if (team.team_rank() == 0) {
+            return_value.join(result, team_result);
+        }
+    }, return_value);
+#else
+    Kokkos::parallel_reduce(iter(range), functor, Kokkos::Min<flt_t>(return_value));
+#endif  // USE_SIMD_KERNELS
+}
+
+
 std::map<std::string, double> time_contribution;
 
 
@@ -70,8 +107,8 @@ void acoustic(const Params& p, Data& d, const view& u)
     UNPACK_FIELDS(d, rho, cmat, pmat, ustar, pstar);
     UNPACK_FIELDS(p, s);
 
-    Kokkos::parallel_for(iter(real_domain_fluxes(p)),
-    KOKKOS_LAMBDA(const int i) {
+    parallel_kernel(real_domain_fluxes(p),
+    KOKKOS_LAMBDA(const Idx i) {
         auto [ustar_i, pstar_i] = acoustic_Godunov(
             rho[i], rho[i-s], cmat[i], cmat[i-s],
               u[i],   u[i-s], pmat[i], pmat[i-s]);
@@ -87,8 +124,8 @@ void acoustic_GAD(const Params& p, Data& d, flt_t dt, const view& u)
     UNPACK_FIELDS(d, rho, cmat, pmat, ustar, pstar);
     UNPACK_FIELDS(p, s, dx);
 
-    Kokkos::parallel_for(iter(real_domain_fluxes(p)),
-    KOKKOS_LAMBDA(const int i) {
+    parallel_kernel(real_domain_fluxes(p),
+    KOKKOS_LAMBDA(const Idx i) {
         // First order acoustic solver on the left cell
         auto [ustar_im, pstar_im] = acoustic_Godunov(
             rho[i-s], rho[i-2*s], cmat[i-s], cmat[i-2*s],
@@ -154,8 +191,8 @@ void perfectGasEOS(const Params& p, Data& d, flt_t gamma)
 {
     UNPACK_FIELDS(d, rho, Emat, umat, vmat, pmat, cmat, gmat);
 
-    Kokkos::parallel_for(iter(real_domain(p)),
-    KOKKOS_LAMBDA(const int i) {
+    parallel_kernel(real_domain(p),
+    KOKKOS_LAMBDA(const Idx i) {
         flt_t e = Emat[i] - flt_t(0.5) * (Kokkos::pow(umat[i], flt_t(2)) + Kokkos::pow(vmat[i], flt_t(2)));
         pmat[i] = (gamma - 1) * rho[i] * e;
         cmat[i] = Kokkos::sqrt(gamma * pmat[i] / rho[i]);
@@ -170,8 +207,8 @@ void bizarriumEOS(const Params& p, Data& d)
     const flt_t G0 = 1.5, s = 1.5, q = -42080895./14941154., r = 727668333./149411540.;
     UNPACK_FIELDS(d, rho, Emat, umat, vmat, pmat, cmat, gmat);
 
-    Kokkos::parallel_for(iter(real_domain(p)),
-    KOKKOS_LAMBDA(const int i) {
+    parallel_kernel(real_domain(p),
+    KOKKOS_LAMBDA(const Idx i) {
         flt_t x = rho[i] / rho0 - 1;
         flt_t g = G0 * (1 - rho0 / rho[i]);
 
@@ -223,8 +260,8 @@ void cellUpdate(const Params& p, Data& d, flt_t dt)
     UNPACK_FIELDS(d, rho, Emat, ustar, pstar, domain_mask);
     UNPACK_FIELDS(p, s, dx);
 
-    Kokkos::parallel_for(iter(real_domain(p)),
-    KOKKOS_LAMBDA(const int i) {
+    parallel_kernel(real_domain(p),
+    KOKKOS_LAMBDA(const Idx i) {
         flt_t mask = domain_mask[i];
         flt_t dm = rho[i] * dx;
         rho[i]   = dm / (dx + dt * (ustar[i+s] - ustar[i]) * mask);
@@ -233,8 +270,8 @@ void cellUpdate(const Params& p, Data& d, flt_t dt)
     });
 
     if (p.projection == Projection::None) {
-        Kokkos::parallel_for(iter(real_domain(p)),
-        KOKKOS_LAMBDA(const int i) {
+        parallel_kernel(real_domain(p),
+        KOKKOS_LAMBDA(const Idx i) {
             x[i] += dt * ustar[i];
         });
     }
@@ -257,10 +294,10 @@ void init_test(const Params& p, Data& d)
     UNPACK_FIELDS(d, x, y, rho, Emat, umat, vmat, domain_mask, pmat, cmat, ustar, pstar);
     UNPACK_FIELDS(p, row_length, nb_ghosts, nx, ny, test);
 
-    Kokkos::parallel_for(iter(all_cells(p)),
-    KOKKOS_LAMBDA(const int i) {
-        int ix = (i % row_length) - nb_ghosts;
-        int iy = (i / row_length) - nb_ghosts;
+    parallel_kernel(all_cells(p),
+    KOKKOS_LAMBDA(const Idx i) {
+        int ix = (static_cast<int>(i) % row_length) - nb_ghosts;
+        int iy = (static_cast<int>(i) / row_length) - nb_ghosts;
 
         x[i] = flt_t(ix) / flt_t(nx) * sx + ox;
         y[i] = flt_t(iy) / flt_t(ny) * sy + oy;
@@ -339,12 +376,12 @@ void boundaryConditions(const Params& p, Data& d, Side side)
     UNPACK_FIELDS(d, rho, umat, vmat, pmat, cmat, gmat);
     UNPACK_FIELDS(p, stencil_width);
 
-    Kokkos::parallel_for(iter(zero_to(loop_range - 1)),
-    KOKKOS_LAMBDA(const int idx) {
-        int i = idx * stride + i_start;
-        int ip = i + disp;
+    parallel_kernel(zero_to(loop_range - 1),
+    KOKKOS_LAMBDA(const Idx idx) {
+        Idx i = idx * stride + i_start;
+        Idx ip = i + disp;
 
-        for (int w = 0; w < stencil_width; w++) {
+        for (Idx w = 0; w < stencil_width; w++) {
             rho[i]  = rho[ip];
             umat[i] = umat[ip] * u_factor;
             vmat[i] = vmat[ip] * v_factor;
@@ -377,8 +414,8 @@ void euler_projection(const Params& p, Data& d, flt_t dt,
     UNPACK_FIELDS(d, rho, umat, vmat, Emat, ustar, domain_mask);
     UNPACK_FIELDS(p, dx, s);
 
-    Kokkos::parallel_for(iter(real_domain(p)),
-    KOKKOS_LAMBDA(const int i) {
+    parallel_kernel(real_domain(p),
+    KOKKOS_LAMBDA(const Idx i) {
         flt_t mask = domain_mask[i];
         flt_t dX = dx + dt * (ustar[i+s] - ustar[i]) * mask;
 
@@ -401,9 +438,9 @@ void advection_first_order(const Params& p, Data& d, flt_t dt,
     UNPACK_FIELDS(d, rho, umat, vmat, Emat, ustar);
     UNPACK_FIELDS(p, s);
 
-    Kokkos::parallel_for(iter(real_domain_advection(p)),
-    KOKKOS_LAMBDA(const int idx) {
-        int i = idx;
+    parallel_kernel(real_domain_advection(p),
+    KOKKOS_LAMBDA(const Idx idx) {
+        Idx i = idx;
         flt_t disp = dt * ustar[i];
         if (disp > 0) {
             i = idx - s;
@@ -432,14 +469,14 @@ void advection_second_order(const Params& p, Data& d, flt_t dt,
     UNPACK_FIELDS(d, rho, umat, vmat, Emat, ustar);
     UNPACK_FIELDS(p, s, dx);
 
-    Kokkos::parallel_for(iter(real_domain_advection(p)),
-    KOKKOS_LAMBDA(const int idx) {
-        int i = idx;
+    parallel_kernel(real_domain_advection(p),
+    KOKKOS_LAMBDA(const Idx idx) {
+        int i = static_cast<int>(idx);
         flt_t disp = dt * ustar[i];
         flt_t Dx;
         if (disp > 0) {
             Dx = -(dx - dt * ustar[i-s]);
-            i = idx - s;
+            i = static_cast<int>(idx) - s;
         } else {
             Dx = dx + dt * ustar[i+s];
         }
@@ -499,16 +536,16 @@ flt_t dtCFL(const Params& p, Data& d, flt_t dta)
         return p.Dt;
     } else if (p.projection != Projection::None) {
         UNPACK_FIELDS(d, umat, vmat, cmat, domain_mask);
-        Kokkos::parallel_reduce(iter(real_domain(p)),
-        KOKKOS_LAMBDA(const int i, flt_t& dt_loop) {
+        parallel_reduce_kernel(real_domain(p),
+        KOKKOS_LAMBDA(const Idx i, flt_t &dt_loop) {
             flt_t max_cx = Kokkos::max(Kokkos::abs(umat[i] + cmat[i]), Kokkos::abs(umat[i] - cmat[i])) * domain_mask[i];
             flt_t max_cy = Kokkos::max(Kokkos::abs(vmat[i] + cmat[i]), Kokkos::abs(vmat[i] - cmat[i])) * domain_mask[i];
             dt_loop = Kokkos::min(dt_loop, Kokkos::min(dx / max_cx, dy / max_cy));
         }, Kokkos::Min<flt_t>(dt));
     } else {
         UNPACK_FIELDS(d, cmat, domain_mask);
-        Kokkos::parallel_reduce(iter(real_domain(p)),
-        KOKKOS_LAMBDA(const int i, flt_t& dt_loop) {
+        parallel_reduce_kernel(real_domain(p),
+        KOKKOS_LAMBDA(const Idx i, flt_t &dt_loop) {
             dt_loop = Kokkos::min(dt_loop, flt_t(1.) / (cmat[i] * domain_mask[i]));
         }, Kokkos::Min<flt_t>(dt));
         dt *= Kokkos::min(dx, dy);
@@ -573,7 +610,7 @@ std::tuple<flt_t, flt_t> conservation_vars(const Params& p, Data& d)
         int s = p.row_length;
         UNPACK_FIELDS(d, x, y, rho, Emat, domain_mask);
         Kokkos::parallel_reduce(iter(real_domain(p)),
-        KOKKOS_LAMBDA(const int i, flt_t& mass, flt_t& energy) {
+        KOKKOS_LAMBDA(const Idx i, flt_t& mass, flt_t& energy) {
             flt_t ds = (x[i+1] - x[i]) * (y[i+s] - y[i]);
             flt_t cell_mass = rho[i] * ds * domain_mask[i];
             flt_t cell_energy = cell_mass * Emat[i];
@@ -584,7 +621,7 @@ std::tuple<flt_t, flt_t> conservation_vars(const Params& p, Data& d)
         flt_t ds = p.dx * p.dx;
         UNPACK_FIELDS(d, x, y, rho, Emat, domain_mask);
         Kokkos::parallel_reduce(iter(real_domain(p)),
-        KOKKOS_LAMBDA(const int i, flt_t& mass, flt_t& energy) {
+        KOKKOS_LAMBDA(const Idx i, flt_t& mass, flt_t& energy) {
             flt_t cell_mass = rho[i] * domain_mask[i] * ds;
             flt_t cell_energy = cell_mass * Emat[i];
             mass += cell_mass;

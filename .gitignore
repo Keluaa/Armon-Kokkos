@@ -2,3 +2,4 @@ cmake-build-*
 data/output_*
 data/cell_throughput
 build/
+.idea

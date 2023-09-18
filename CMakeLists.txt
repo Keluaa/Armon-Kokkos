@@ -7,7 +7,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -funroll-loops")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${CMAKE_CXX_FLAGS_RELEASE}")
 
 # Kokkos Modules
 set(Kokkos_ENABLE_HWLOC OFF CACHE BOOL "Kokkos_ENABLE_HWLOC" FORCE)
@@ -42,6 +43,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT Kokkos_ENABLE_OPENMP AND NOT Kokkos
     # Enable all debug options when running in serial mode only
     set(Kokkos_ENABLE_DEBUG ON CACHE BOOL "Kokkos_ENABLE_DEBUG" FORCE)
     set(Kokkos_ENABLE_DEBUG_BOUNDS_CHECK ON CACHE BOOL "Kokkos_ENABLE_DEBUG_BOUNDS_CHECK" FORCE)
+    set(Kokkos_ARCH_NATIVE OFF CACHE BOOL "Kokkos_ARCH_NATIVE" FORCE)
     # Disable fast math in order to catch NANs more easily
     set(OPTIONS "-fno-fast-math")
 else()
@@ -49,11 +51,7 @@ else()
     set(Kokkos_ENABLE_DEBUG_BOUNDS_CHECK OFF CACHE BOOL "Kokkos_ENABLE_DEBUG_BOUNDS_CHECK" FORCE)
 
     # Optimize for the native architecture when using only the CPU
-    if(Kokkos_ENABLE_OPENMP AND NOT Kokkos_ENABLE_CUDA AND NOT Kokkos_ENABLE_HIP)
-        set(Kokkos_ARCH_NATIVE ON)
-    else()
-        set(Kokkos_ARCH_NATIVE OFF)
-    endif()
+    set(Kokkos_ARCH_NATIVE ON CACHE BOOL "Kokkos_ARCH_NATIVE" FORCE)
 
     set(OPTIONS "-ffast-math")
 endif()
@@ -62,6 +60,7 @@ endif()
 # Project Options
 option(USE_SINGLE_PRECISION "Use float instead of double" OFF)
 option(USE_NVTX "Enable NVTX tracing" OFF)
+option(USE_SIMD_KERNELS "Use team vector loops instead of normal loops" OFF)
 
 if(USE_SINGLE_PRECISION)
     set(PRECISION 1)
@@ -73,6 +72,12 @@ if(USE_NVTX)
     set(NVTX 1)
 else()
     set(NVTX 0)
+endif()
+
+if(USE_SIMD_KERNELS)
+    set(SIMD_KERNELS 1)
+else()
+    set(SIMD_KERNELS 0)
 endif()
 
 

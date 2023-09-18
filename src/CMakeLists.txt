@@ -28,7 +28,8 @@ target_compile_options(${LIB_NAME_2D} PRIVATE ${OPTIONS})
 
 target_compile_definitions(${LIB_NAME_2D} PUBLIC
         USE_SINGLE_PRECISION=${PRECISION}
-        USE_NVTX=${NVTX})
+        USE_NVTX=${NVTX}
+        USE_SIMD_KERNELS=${SIMD_KERNELS})
 
 add_executable(${EXE_NAME_2D}
         main_2D.cpp)
