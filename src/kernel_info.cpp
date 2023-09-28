@@ -124,12 +124,12 @@ void print_kernel_params(const Params& p)
 {
     auto range = real_domain(p);
     auto [block, grid] = get_block_and_grid_size(iter(range));
-    printf("Kernel launch parameters for 'parallel_for', with range [%d, %d]:\n", std::get<0>(range), std::get<1>(range));
+    printf("Kernel launch parameters for 'parallel_for', with range [%ld, %ld]:\n", range.start, range.end);
     printf(" - block dim: %d, %d, %d\n", block[0], block[1], block[2]);
     printf(" - grid dim:  %d, %d, %d\n", grid[0], grid[1], grid[2]);
 
     auto [block_r, grid_r] = get_block_and_grid_size_reduction(iter(range));
-    printf("Kernel launch parameters for 'parallel_reduce', with range [%d, %d]:\n", std::get<0>(range), std::get<1>(range));
+    printf("Kernel launch parameters for 'parallel_reduce', with range [%ld, %ld]:\n", range.start, range.end);
     printf(" - block dim: %d, %d, %d\n", block_r[0], block_r[1], block_r[2]);
     printf(" - grid dim:  %d, %d, %d\n", grid_r[0], grid_r[1], grid_r[2]);
 }

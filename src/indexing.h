@@ -10,48 +10,55 @@ using Idx = Kokkos::RangePolicy<>::index_type;
 using Index_t = Kokkos::IndexType<Idx>;
 using Team_t = Kokkos::TeamPolicy<Index_t>::member_type;
 
+
+struct Range {
+    Idx start;
+    Idx end;  // exclusive (open interval)
+
+    [[nodiscard]] Idx length() const { return end - start; }
+};
+
+
 KOKKOS_INLINE_FUNCTION int index_1D(const Params& p, int i, int j)
 {
     return p.index_start + j * p.idx_row + i * p.idx_col;
 }
 
-std::tuple<int, int> real_domain(const Params& p);
-std::tuple<int, int> real_domain_fluxes(const Params& p);
-std::tuple<int, int> real_domain_advection(const Params& p);
-std::tuple<int, int> zero_to(int i);
-std::tuple<int, int> all_cells(const Params& p);
+Range real_domain(const Params& p);
+Range real_domain_fluxes(const Params& p);
+Range real_domain_advection(const Params& p);
+Range zero_to(int i);
+Range all_cells(const Params& p);
 
 
-KOKKOS_INLINE_FUNCTION Kokkos::RangePolicy<Index_t> iter(const std::tuple<int, int>&& range)
+KOKKOS_INLINE_FUNCTION Kokkos::RangePolicy<Index_t> iter(const Range&& range)
 {
-    auto [deb, fin] = range;
-    return {static_cast<Idx>(deb), static_cast<Idx>(fin+1)}; // +1 as RangePolicy is an open interval
+    return {range.start, range.end };
 }
 
 
-KOKKOS_INLINE_FUNCTION Kokkos::RangePolicy<Index_t> iter(const std::tuple<int, int>& range)
+KOKKOS_INLINE_FUNCTION Kokkos::RangePolicy<Index_t> iter(const Range& range)
 {
-    return iter(std::forward<const std::tuple<int, int>>(range));
+    return iter(std::forward<const Range>(range));
 }
 
 
-KOKKOS_INLINE_FUNCTION Kokkos::TeamPolicy<Index_t> iter_simd(const std::tuple<int, int>&& range)
+KOKKOS_INLINE_FUNCTION Kokkos::TeamPolicy<Index_t> iter_simd(const Range&& range, int V)
 {
-    auto [deb, fin] = range;
-    int size = fin - deb + 1;
-    return { size, Kokkos::AUTO };
+    int size = static_cast<int>(Kokkos::ceil(static_cast<double>(range.length()) / V));
+    return { size, Kokkos::AUTO, V };
 }
 
 
-KOKKOS_INLINE_FUNCTION Kokkos::TeamPolicy<Index_t> iter_simd(const std::tuple<int, int>& range)
+KOKKOS_INLINE_FUNCTION Kokkos::TeamPolicy<Index_t> iter_simd(const Range& range, int V)
 {
-    return iter_simd(std::forward<const std::tuple<int, int>>(range));
+    return iter_simd(std::forward<const Range>(range), V);
 }
 
 
-KOKKOS_INLINE_FUNCTION Idx iter_team_start(const Team_t& team, const std::tuple<int, int>& range)
+KOKKOS_INLINE_FUNCTION Idx iter_team_start(const Team_t& team, const Range& range)
 {
-    return team.league_rank() * team.team_size() + std::get<0>(range);
+    return team.league_rank() * team.team_size() + range.start;
 }
 
 

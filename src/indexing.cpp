@@ -2,53 +2,53 @@
 #include "indexing.h"
 
 
-std::tuple<int, int> real_domain(const Params& p)
+Range real_domain(const Params& p)
 {
-    int deb = p.ideb;
-    int fin = p.ifin;
+    Idx deb = p.ideb;
+    Idx fin = p.ifin;
 
     if (p.single_comm_per_axis_pass) {
-        int r = p.extra_ring_width;
+        Idx r = p.extra_ring_width;
 
         // Add 'r' columns/rows on each side of the domain
         deb -= r * p.row_length + r;
         fin += r * p.row_length + r;
     }
 
-    return std::make_tuple(deb, fin);
+    return { deb, fin };
 }
 
 
-std::tuple<int, int> real_domain_fluxes(const Params& p)
+Range real_domain_fluxes(const Params& p)
 {
-    auto [deb, fin] = real_domain(p);
+    auto [start, end] = real_domain(p);
 
     // Add one row/column along the current direction
-    fin += p.s;
+    end += p.s;
 
-    return std::make_tuple(deb, fin);
+    return { start, end };
 }
 
 
-std::tuple<int, int> real_domain_advection(const Params& p)
+Range real_domain_advection(const Params& p)
 {
-    auto [deb, fin] = real_domain(p);
+    auto [start, end] = real_domain(p);
 
     // Add one row or column on each side of the current direction
-    deb -= p.s;
-    fin += p.s;
+    start -= p.s;
+    end += p.s;
 
-    return std::make_tuple(deb, fin);
+    return { start, end };
 }
 
 
-std::tuple<int, int> zero_to(int i)
+Range zero_to(int i)
 {
-    return std::make_tuple(0, i);
+    return { 0, static_cast<Idx>(i) };
 }
 
 
-std::tuple<int, int> all_cells(const Params& p)
+Range all_cells(const Params& p)
 {
     return zero_to(p.nb_cells - 1);
 }
