@@ -22,7 +22,8 @@ add_library(${LIB_NAME_2D}
         armon_2D.h
         kernel_info.cpp kernel_info.h
         io.cpp io.h
-        utils.h)
+        utils.h
+        double_reducer.h)
 target_link_libraries(${LIB_NAME_2D} PRIVATE Kokkos::kokkos)
 target_compile_options(${LIB_NAME_2D} PRIVATE ${OPTIONS})
 

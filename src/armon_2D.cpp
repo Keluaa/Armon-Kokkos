@@ -3,6 +3,7 @@
 
 #include "io.h"
 #include "utils.h"
+#include "double_reducer.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -638,27 +639,30 @@ std::tuple<flt_t, flt_t> conservation_vars(const Params& p, Data& d)
     flt_t total_mass = 0;
     flt_t total_energy = 0;
 
+    // OpenMP target does not support multiple reductions at once, therefore we must implement it ourselves
+    auto reducer = DoubleReducer(Kokkos::Sum<flt_t>(total_mass), Kokkos::Sum<flt_t>(total_energy));
+
     if (p.projection == Projection::None) {
         int s = p.row_length;
         UNPACK_FIELDS(d, x, y, rho, Emat, domain_mask);
-        Kokkos::parallel_reduce(iter(real_domain(p)),
-        KOKKOS_LAMBDA(const Idx i, flt_t& mass, flt_t& energy) {
+        parallel_reduce_kernel(real_domain(p),
+        KOKKOS_LAMBDA(const Idx i, decltype(reducer)::value_type& mass_and_energy) {
             flt_t ds = (x[i+1] - x[i]) * (y[i+s] - y[i]);
             flt_t cell_mass = rho[i] * ds * domain_mask[i];
             flt_t cell_energy = cell_mass * Emat[i];
-            mass += cell_mass;
-            energy += cell_energy;
-        }, Kokkos::Sum<flt_t>(total_mass), Kokkos::Sum<flt_t>(total_energy));
+            std::get<0>(mass_and_energy) += cell_mass;
+            std::get<1>(mass_and_energy) += cell_energy;
+        }, reducer);
     } else {
         flt_t ds = p.dx * p.dx;
         UNPACK_FIELDS(d, x, y, rho, Emat, domain_mask);
-        Kokkos::parallel_reduce(iter(real_domain(p)),
-        KOKKOS_LAMBDA(const Idx i, flt_t& mass, flt_t& energy) {
+        parallel_reduce_kernel(real_domain(p),
+        KOKKOS_LAMBDA(const Idx i, decltype(reducer)::value_type& mass_and_energy) {
             flt_t cell_mass = rho[i] * domain_mask[i] * ds;
             flt_t cell_energy = cell_mass * Emat[i];
-            mass += cell_mass;
-            energy += cell_energy;
-        }, Kokkos::Sum<flt_t>(total_mass), Kokkos::Sum<flt_t>(total_energy));
+            std::get<0>(mass_and_energy) += cell_mass;
+            std::get<1>(mass_and_energy) += cell_energy;
+        }, reducer);
     }
 
     return std::make_tuple(total_mass, total_energy);
