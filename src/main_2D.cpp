@@ -5,10 +5,6 @@
 #include "data.h"
 #include "armon_2D.h"
 
-#if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP)
-#include "kernel_info.h"
-#endif
-
 
 const char USAGE[] = R"(
  == Armon ==
@@ -17,7 +13,7 @@ Parallelized using Kokkos.
 
 Options:
     -h or --help            Prints this message and exit
-    -t <test>               Test case: 'Sod', 'Sod_y', 'Sod_circ' or 'Bizarrium'
+    -t <test>               Test case: 'Sod', 'Sod_y', 'Sod_circ', 'Bizarrium' or 'Sedov'
     -s <scheme>             Numeric scheme: 'Godunov' (first order) or 'GAD' (second order)
     --limiter <limiter>     Limiter for the second order scheme: 'None', 'Minmod' (default), 'Superbee'
     --cells Nx,Ny           Number of cells in the 2D mesh
@@ -25,8 +21,8 @@ Options:
     --stencil N             Width of the stencil in cells. Defaults to the number of ghost cells.
     --cycle N               Maximum number of iterations
     --riemann <solver>      Riemann solver: 'acoustic' only
-    --projection <scheme>   Projection scheme: 'none' (lagrangian mode), 'euler' (1st order), 'euler_2nd' (2nd order)
-    --time T                Maximum time (in seconds)
+    --projection <scheme>   Projection scheme: 'euler' (1st order) or 'euler_2nd' (2nd order)
+    --time T                Maximum simulation time (in seconds)
     --cfl C                 CFL number
     --dt T                  Initial time step (in seconds)
     --cst-dt 0-1            Constant time step mode
@@ -37,8 +33,6 @@ Options:
     --write-throughput 0-1  Enable writing the cell throughput to a separate file (in Mega cells/sec)
     --splitting <method>    Axis splitting method: 'Sequential' (XYXY...), 'SequentialSym' (XYYXXYY...),
                             'Strang' (XYX with dt/2 for X, then YXY with dt/2 for Y, repeat)
-    --single-comm 0-1       Simulates the need to compute more cells than needed to have only a single communication
-                            phase if this was a distributed solver.
     --compare 0-1           Compare each step of the solver with some reference data.
     --verbose 0-3           Verbosity (0: high, 3: low)
 )";
@@ -200,10 +194,6 @@ bool parse_arguments(Params& p, int argc, char** argv)
             }
             i++;
         }
-        else if (strcmp(argv[i], "--single-comm") == 0) {
-            p.single_comm_per_axis_pass = strtol(argv[i+1], nullptr, 2);
-            i++;
-        }
         else if (strcmp(argv[i], "--compare") == 0) {
             p.compare = strtol(argv[i+1], nullptr, 2);
             i++;
@@ -237,9 +227,7 @@ bool run_armon(int argc, char* argv[])
 
     if (params.verbose < 3) {
         params.print();
-#if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP)
-        print_kernel_params(params);
-#endif
+        Kokkos::print_configuration(std::cout);
     }
 
     return armon(params);

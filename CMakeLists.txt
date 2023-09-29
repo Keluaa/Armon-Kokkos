@@ -88,6 +88,8 @@ if (NOT DEFINED ARMON_KOKKOS_ROOT)
     set(ARMON_KOKKOS_ROOT "${PROJECT_SOURCE_DIR}/modules/kokkos")
 endif()
 
+# Important: required to build shared libraries using Kokkos
+set(BUILD_SHARED_LIBS ON)
 
 # Project Modules
 add_subdirectory(${ARMON_KOKKOS_ROOT} lib)

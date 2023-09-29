@@ -4,9 +4,18 @@
 
 #include <type_traits>
 #include <tuple>
+
 #include <Kokkos_Core.hpp>
 
 
+/**
+ * Allows to reduce two values at the same time in a Kokkos `parallel_reduce` kernel.
+ *
+ * While `parallel_reduce` already has the semantics to do so, variadic templating is very hard (and annoying), making
+ * supporting this syntax difficult. Furthermore, this syntax is currently not supported by all backends.
+ *
+ * Using this Reducer class shouldn't introduce any overhead (hopefully).
+ */
 template<typename Reducer>
 class DoubleReducer
 {
@@ -55,13 +64,13 @@ public:
 
     KOKKOS_INLINE_FUNCTION
     DoubleReducer(value_type& value)
-        : delegate(std::get<0>(value))
+        : delegate(std::get<0>(value))  // Dummy constructor call
         , value(&value)
     { }
 
     KOKKOS_INLINE_FUNCTION
     DoubleReducer(const result_view_type& value)
-        : delegate(std::get<0>(value()))
+        : delegate(std::get<0>(value()))  // Dummy constructor call
         , value(value)
     { }
 };

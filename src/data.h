@@ -4,16 +4,14 @@
 
 #include <Kokkos_Core.hpp>
 
-#include "parameters.h"
+#include "kernels/common.h"
 
 
-using view = Kokkos::View<flt_t*>;
-using host_view = view::HostMirror;
-using mask_view = Kokkos::View<bool*>;
-//using mask_view = Kokkos::View<flt_t*>;
-using host_mask_view = mask_view::HostMirror;
-
-
+/**
+ * Holds all variables needed by the solver, for a given device.
+ *
+ * Views are allocated without initializing.
+ */
 template<typename view_t, typename mask_view_t>
 struct DataHolder
 {

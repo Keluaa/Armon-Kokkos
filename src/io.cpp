@@ -1,7 +1,7 @@
 
 #include "io.h"
 
-#include "indexing.h"
+#include "ranges.h"
 
 #include <fstream>
 #include <iomanip>

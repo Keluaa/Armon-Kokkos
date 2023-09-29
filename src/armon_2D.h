@@ -4,58 +4,21 @@
 
 #include <Kokkos_Core.hpp>
 
+#include "kernels/common.h"
 #include "parameters.h"
-#include "indexing.h"
 #include "data.h"
 
 
-// Program time contribution tracking
-extern std::map<std::string, double> time_contribution;
-#define CAT(a, b) a##b
-#define TIC_IMPL(line_nb) auto CAT(tic_, line_nb) = std::chrono::steady_clock::now()
-#define TAC_IMPL(label, line_nb)                                \
-    auto CAT(tac_, line_nb) = std::chrono::steady_clock::now(); \
-    double CAT(expr_time_, line_nb) = std::chrono::duration<double>(CAT(tac_, line_nb) - CAT(tic_, line_nb)).count(); \
-    time_contribution[label]   += CAT(expr_time_, line_nb);     \
-    time_contribution["TOTAL"] += CAT(expr_time_, line_nb)
-#define TIC() TIC_IMPL(__LINE__)
-#define TAC(label) TAC_IMPL(label, __LINE__)
+void numerical_fluxes(const Params& p, Data& d, flt_t dt);
 
-
-template <Limiter L>
-KOKKOS_INLINE_FUNCTION flt_t limiter(flt_t)
-{
-    static_assert(L == Limiter::None, "Wrong limiter type");
-    return flt_t(1);
-}
-
-
-template<>
-KOKKOS_INLINE_FUNCTION flt_t limiter<Limiter::Minmod>(flt_t r)
-{
-    return Kokkos::max(flt_t(0), Kokkos::min(flt_t(1), r));
-}
-
-
-template<>
-KOKKOS_INLINE_FUNCTION flt_t limiter<Limiter::Superbee>(flt_t r)
-{
-    return Kokkos::max(Kokkos::max(flt_t(0), Kokkos::min(flt_t(1), 2*r)), Kokkos::min(flt_t(2), r));
-}
-
-
-void numericalFluxes(const Params& p, Data& d, flt_t dt);
-
-void perfectGasEOS(const Params& p, Data& d, flt_t gamma);
-void bizarriumEOS(const Params& p, Data& d);
 void update_EOS(const Params& p, Data& d);
 
-void cellUpdate(const Params& p, Data& d, flt_t dt);
+void cell_update(const Params& p, Data& d, flt_t dt);
 
 void init_test(const Params& p, Data& d);
 
-void boundaryConditions(const Params& p, Data& d, Side side);
-void boundaryConditions(const Params& p, Data& d);
+void boundary_conditions(const Params& p, Data& d, Side side);
+void boundary_conditions(const Params& p, Data& d);
 
 void euler_projection(const Params& p, Data& d, flt_t dt,
                       const view& advection_rho, const view& advection_urho,
@@ -68,7 +31,7 @@ void advection_second_order(const Params& p, Data& d, flt_t dt,
                             view& advection_vrho, view& advection_Erho);
 void projection_remap(const Params& p, Data& d, flt_t dt);
 
-flt_t dtCFL(const Params& p, Data& d, flt_t dta);
+flt_t dt_CFL(const Params& p, Data& d, flt_t dta);
 
 std::tuple<flt_t, flt_t> conservation_vars(const Params& p, Data& d);
 
