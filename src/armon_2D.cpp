@@ -110,16 +110,21 @@ void cell_update(const Params& p, Data& d, flt_t dt)
 }
 
 
-void init_test(const Params& p, Data& d)
+void init_test(const Params& p, Data& d, bool debug_indexes)
 {
     auto [range, inner_range] = complete_domain(p).iter1D();
+
+    flt_t dx = p.domain_size[0] / flt_t(p.nx);
+    flt_t dy = p.domain_size[1] / flt_t(p.ny);
+    flt_t test_option = p.test_case->test_option(dx, dy);
+
     init_test(range, inner_range,
               p.row_length, p.nb_ghosts,
               p.nx, p.ny, p.nx, p.ny, 0, 0,
               p.domain_size[0], p.domain_size[1], p.domain_origin[0], p.domain_origin[1],
               d.x, d.y, d.rho, d.Emat, d.umat, d.vmat,
               d.domain_mask, d.pmat, d.cmat, d.ustar, d.pstar,
-              p.test, false);
+              p.test, debug_indexes, test_option);
 }
 
 
@@ -285,13 +290,14 @@ bool solver_cycle(Params& p, Data& d, HostData& hd, int cycles, flt_t prev_dt)
 {
     for (auto [axis, dt_factor] : p.split_axes(cycles)) {
         p.update_axis(axis);
+        flt_t dt = prev_dt * dt_factor;
 
         BEGIN_RANGE(axis);
-        BEGIN_RANGE(EOS);    TIC(); update_EOS(p, d);                            TAC("update_EOS");         END_RANGE(EOS);    CHECK_STEP("update_EOS");
-        BEGIN_RANGE(BC);     TIC(); boundary_conditions(p, d);                    TAC("boundary_conditions"); END_RANGE(BC);     CHECK_STEP("boundary_conditions");
-        BEGIN_RANGE(fluxes); TIC(); numerical_fluxes(p, d, prev_dt * dt_factor); TAC("numerical_fluxes");    END_RANGE(fluxes); CHECK_STEP("numerical_fluxes");
-        BEGIN_RANGE(update); TIC(); cell_update(p, d, prev_dt * dt_factor);       TAC("cell_update");         END_RANGE(update); CHECK_STEP("cell_update");
-        BEGIN_RANGE(remap);  TIC(); projection_remap(p, d, prev_dt * dt_factor); TAC("euler_proj");         END_RANGE(remap);  CHECK_STEP("projection_remap");
+        BEGIN_RANGE(EOS);    TIC(); update_EOS(p, d);           TAC("EOS");                 END_RANGE(EOS);    CHECK_STEP("EOS");
+        BEGIN_RANGE(BC);     TIC(); boundary_conditions(p, d);  TAC("boundary_conditions"); END_RANGE(BC);     CHECK_STEP("boundary_conditions");
+        BEGIN_RANGE(fluxes); TIC(); numerical_fluxes(p, d, dt); TAC("numerical_fluxes");    END_RANGE(fluxes); CHECK_STEP("numerical_fluxes");
+        BEGIN_RANGE(update); TIC(); cell_update(p, d, dt);      TAC("cell_update");         END_RANGE(update); CHECK_STEP("cell_update");
+        BEGIN_RANGE(remap);  TIC(); projection_remap(p, d, dt); TAC("euler_proj");          END_RANGE(remap);  CHECK_STEP("projection_remap");
         END_RANGE(axis);
     }
 
@@ -311,7 +317,7 @@ std::tuple<double, flt_t, int> time_loop(Params& p, Data& d, HostData& hd)
     BEGIN_RANGE(EOS_init);
     update_EOS(p, d);  // Finalize the initialisation by calling the EOS
     END_RANGE(EOS_init);
-    if (step_checkpoint(p, d, hd, "update_EOS_init", 0, p.current_axis)) goto end_loop;
+    if (step_checkpoint(p, d, hd, "EOS_init", 0, p.current_axis)) goto end_loop;
 
     flt_t initial_mass, initial_energy;
     if (p.verbose <= 1) {
@@ -390,6 +396,7 @@ bool armon(Params& params)
 
     BEGIN_RANGE(init_test);
     TIC(); init_test(params, data); TAC("init_test");
+    if (step_checkpoint(params, data, host_data, "init_test", 0, params.current_axis)) return false;
     END_RANGE(init_test);
     END_RANGE(init);
 

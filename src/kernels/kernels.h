@@ -76,7 +76,7 @@ void init_test(const Range& range, const InnerRange1D& inner_range,
                flt_t sx, flt_t sy, flt_t ox, flt_t oy,
                view& x, view& y, view& rho, view& Emat, view& umat, view& vmat,
                mask_view& domain_mask, view& pmat, view& cmat, view& ustar, view& pstar,
-               Test test, bool debug_indexes, flt_t test_option = 0.);
+               Test test, bool debug_indexes, flt_t test_option);
 
 extern "C"
 flt_t dt_CFL(const Range& range, const InnerRange1D& inner_range, flt_t dx, flt_t dy,

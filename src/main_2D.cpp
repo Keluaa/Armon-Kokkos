@@ -56,6 +56,9 @@ bool parse_arguments(Params& p, int argc, char** argv)
             else if (strcmp(argv[i+1], "Bizarrium") == 0) {
                 p.test = Test::Bizarrium;
             }
+            else if (strcmp(argv[i+1], "Sedov") == 0) {
+                p.test = Test::Sedov;
+            }
             else {
                 printf("Unknown test: %s\n", argv[i+1]);
                 return false;

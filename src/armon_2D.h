@@ -15,7 +15,7 @@ void update_EOS(const Params& p, Data& d);
 
 void cell_update(const Params& p, Data& d, flt_t dt);
 
-void init_test(const Params& p, Data& d);
+void init_test(const Params& p, Data& d, bool debug_indexes = false);
 
 void boundary_conditions(const Params& p, Data& d, Side side);
 void boundary_conditions(const Params& p, Data& d);

@@ -29,6 +29,7 @@ struct TestCase {
     virtual flt_t default_CFL() const = 0;
     virtual flt_t default_max_time() const = 0;
     virtual std::array<flt_t, 2> boundaryCondition(Side side) const = 0;
+    virtual flt_t test_option(flt_t dx, flt_t dy) const { return 0.; }
 };
 
 
@@ -119,7 +120,11 @@ struct TestSedov : TestCase {
     KOKKOS_INLINE_FUNCTION
     bool region_high(flt_t x, flt_t y) const
     {
-        return Kokkos::pow(x, flt_t(2)) + Kokkos::pow(y, flt_t(2)) <= Kokkos::pow(r, flt_t(2));
+        return (Kokkos::pow(x, flt_t(2)) + Kokkos::pow(y, flt_t(2))) <= Kokkos::pow(r, flt_t(2));
+    }
+
+    flt_t test_option(flt_t dx, flt_t dy) const override {
+        return Kokkos::hypot(dx, dy) / Kokkos::numbers::sqrt2;
     }
 };
 
