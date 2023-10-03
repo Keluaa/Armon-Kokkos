@@ -10,13 +10,14 @@
 std::string get_reference_data_path(Test test_case)
 {
     std::string ref_path = PROJECT_ROOT_DIR;
-    ref_path += "/../julia/tests/reference_data/ref_";
+    ref_path += "/../julia/test/reference_data/ref_";  // Valid only when in the ArmonBenchmark project
 
     switch (test_case) {
     case Test::Sod:       ref_path += "Sod";       break;
     case Test::Sod_y:     ref_path += "Sod_y";     break;
     case Test::Sod_circ:  ref_path += "Sod_circ";  break;
     case Test::Bizarrium: ref_path += "Bizarrium"; break;
+    case Test::Sedov:     ref_path += "Sedov";     break;
     }
 
 #if USE_SINGLE_PRECISION

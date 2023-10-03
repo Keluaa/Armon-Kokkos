@@ -13,6 +13,8 @@
 #include <filesystem>
 #include <sstream>
 #include <cfenv>
+#include <csignal>
+#include <csetjmp>
 
 
 std::unique_ptr<Kokkos::ScopeGuard> global_guard = nullptr;
@@ -197,31 +199,48 @@ TEST_CASE("Memory alignment") {
 
 
 TEST_SUITE("NaNs check") {
-    void run_nan_check(Test test_case)
+    std::jmp_buf jump_buffer;
+
+    void sigfpe_handler(int)
+    {
+        std::longjmp(jump_buffer, 1);
+    }
+
+    void run_nan_check(Test test_case, int expected_cycles)
     {
         init_kokkos();
         feenableexcept(FE_INVALID);
+        std::signal(SIGFPE, sigfpe_handler);
 
         Params ref_params = get_reference_params(test_case);
         REQUIRE(ref_params.check());
         Data data(ref_params.nb_cells);
         HostData host_data = data.as_mirror();
-        init_test(ref_params, data);
-        time_loop(ref_params, data, host_data);
+        volatile int cycles = 0;
+
+        if (setjmp(jump_buffer) == 0) {
+            init_test(ref_params, data);
+            cycles = std::get<2>(time_loop(ref_params, data, host_data));
+        } else {
+            FAIL("Invalid floating-point operation");
+        }
 
         fedisableexcept(FE_INVALID);
+        std::signal(SIGFPE, SIG_DFL);
+
+        CHECK_EQ(cycles, expected_cycles);
     }
 
-
-    TEST_CASE("Sod")       { run_nan_check(Test::Sod);       }
-    TEST_CASE("Sod_y")     { run_nan_check(Test::Sod_y);     }
-    TEST_CASE("Sod_circ")  { run_nan_check(Test::Sod_circ);  }
-    TEST_CASE("Bizarrium") { run_nan_check(Test::Bizarrium); }
+    TEST_CASE("Sod")       { run_nan_check(Test::Sod, 45);       }
+    TEST_CASE("Sod_y")     { run_nan_check(Test::Sod_y, 45);     }
+    TEST_CASE("Sod_circ")  { run_nan_check(Test::Sod_circ, 44);  }
+    TEST_CASE("Bizarrium") { run_nan_check(Test::Bizarrium, 76); }
+    TEST_CASE("Sedov")     { run_nan_check(Test::Sedov, 568);    }
 }
 
 
 TEST_SUITE("Conservation") {
-    void run_test(Test test_case)
+    void run_test(Test test_case, int expected_cycles)
     {
         init_kokkos();
 
@@ -232,16 +251,20 @@ TEST_SUITE("Conservation") {
 
         init_test(ref_params, data);
         auto [initial_mass, initial_energy] = conservation_vars(ref_params, data);
-        time_loop(ref_params, data, host_data);
+        int cycles = std::get<2>(time_loop(ref_params, data, host_data));
         auto [current_mass, current_energy] = conservation_vars(ref_params, data);
 
         check_flt_eq("Mass is not conserved.", initial_mass, current_mass, 1e-12);
         check_flt_eq("Energy is not conserved.", initial_energy, current_energy, 1e-12);
+
+        CHECK_EQ(cycles, expected_cycles);
     }
 
-    TEST_CASE("Sod")      { run_test(Test::Sod);      }
-    TEST_CASE("Sod_y")    { run_test(Test::Sod_y);    }
-    TEST_CASE("Sod_circ") { run_test(Test::Sod_circ); }
+    TEST_CASE("Sod")      { run_test(Test::Sod, 45);      }
+    TEST_CASE("Sod_y")    { run_test(Test::Sod_y, 45);    }
+    TEST_CASE("Sod_circ") { run_test(Test::Sod_circ, 44); }
+    // Bizarrium is not conservative
+    TEST_CASE("Sedov")    { run_test(Test::Sedov, 568);   }
 }
 
 
@@ -254,7 +277,6 @@ TEST_SUITE("Comparison with reference") {
         }
         return !exists;
     }
-
 
     void run_comparison(Test test, const std::string& ref_data_path)
     {
@@ -284,31 +306,38 @@ TEST_SUITE("Comparison with reference") {
         CHECK_EQ(diff_count, 0);
     }
 
-
     std::string ref_path_sod = get_reference_data_path(Test::Sod);
     bool sod_missing = check_if_ref_file_exists(ref_path_sod);
-    TEST_CASE("Sod" * doctest::skip(sod_missing)) {
+    TEST_CASE("ref_Sod" * doctest::skip(sod_missing)) {
         run_comparison(Test::Sod, ref_path_sod);
     }
 
     std::string ref_path_sod_y = get_reference_data_path(Test::Sod_y);
     bool sod_y_missing = check_if_ref_file_exists(ref_path_sod_y);
-    TEST_CASE("Sod_y" * doctest::skip(sod_y_missing)) {
+    TEST_CASE("ref_Sod_y" * doctest::skip(sod_y_missing)) {
         run_comparison(Test::Sod_y, ref_path_sod_y);
     }
 
     std::string ref_path_sod_circ = get_reference_data_path(Test::Sod_circ);
     bool sod_circ_missing = check_if_ref_file_exists(ref_path_sod_circ);
-    TEST_CASE("Sod_circ" * doctest::skip(sod_circ_missing)) {
+    TEST_CASE("ref_Sod_circ" * doctest::skip(sod_circ_missing)) {
         // TODO: diverges from the correct solution
         run_comparison(Test::Sod_circ, ref_path_sod_circ);
     }
 
     std::string ref_path_bizarrium = get_reference_data_path(Test::Bizarrium);
     bool bizarrium_missing = check_if_ref_file_exists(ref_path_bizarrium);
-    TEST_CASE("Bizarrium" * doctest::skip(bizarrium_missing)) {
+    TEST_CASE("ref_Bizarrium" * doctest::skip(bizarrium_missing)) {
         // TODO: diverges from the correct solution
         // NOTE: GCC rounds the pressure in the initial call to 'update_EOS' differently from Clang, by a single ulp.
         run_comparison(Test::Bizarrium, ref_path_bizarrium);
+    }
+
+    std::string ref_path_sedov = get_reference_data_path(Test::Sedov);
+    bool sedov_missing = check_if_ref_file_exists(ref_path_sedov);
+    TEST_CASE("ref_Sedov" * doctest::skip(sedov_missing)) {
+        // TODO: diverges from the correct solution
+        // NOTE: GCC rounds the pressure in the initial call to 'update_EOS' differently from Clang, by a single ulp.
+        run_comparison(Test::Sedov, ref_path_sedov);
     }
 }
