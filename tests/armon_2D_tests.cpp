@@ -3,9 +3,10 @@
 #include "doctest.h"
 
 #include "parameters.h"
-#include "indexing.h"
+#include "kernels/indexing.h"
 #include "io.h"
 #include "armon_2D.h"
+#include "ranges.h"
 
 #include "reference.h"
 
@@ -24,11 +25,13 @@ void init_kokkos()
 
 
 template<>
-struct doctest::StringMaker<std::tuple<int, int>>
+struct doctest::StringMaker<DomainRange>
 {
-    static String convert(const std::tuple<int, int>& t) {
+    static String convert(const DomainRange& dr)
+    {
         std::ostringstream oss;
-        oss << "(" << std::get<0>(t) << ", " << std::get<1>(t) << ")";
+        oss << "DomainRange{" << dr.col_start << ":" << dr.col_step << ":" << dr.col_end
+            << ", " << dr.row_start << ":" << dr.row_step << ":" << dr.row_end << "}";
         return oss.str().c_str();
     }
 };
@@ -60,11 +63,11 @@ Params get_default_params()
     p.limiter = Limiter::Minmod;
     p.projection = Projection::Euler_2nd;
     p.axis_splitting = AxisSplitting::Sequential;
-    p.single_comm_per_axis_pass = false;
 
     p.max_cycles = 100;
     p.verbose = 1;
 
+    // Rectangular domain to catch edge-cases
     p.nx = 100;
     p.ny = 5;
     p.nb_ghosts = 5;
@@ -75,15 +78,100 @@ Params get_default_params()
 
 TEST_CASE("indexing") {
     Params p = get_default_params();
-    p.single_comm_per_axis_pass = true;
     p.init();
     REQUIRE(p.check());
 
     SUBCASE("Domains") {
-        CHECK_EQ(real_domain(p),           std::tuple<int, int>(333, 1316));
-        CHECK_EQ(real_domain_fluxes(p),    std::tuple<int, int>(333, 1317));
-        CHECK_EQ(real_domain_advection(p), std::tuple<int, int>(332, 1317));
-        CHECK_EQ(all_cells(p),             std::tuple<int, int>(0, 1649));
+        CHECK_EQ(real_domain(p),      DomainRange{555, 110,  995,  0, 1,  99});
+        CHECK_EQ(domain_fluxes(p),    DomainRange{555, 110,  995, -2, 1, 102});
+        CHECK_EQ(domain_advection(p), DomainRange{555, 110,  995,  0, 1, 100});
+        CHECK_EQ(complete_domain(p),  DomainRange{  5, 110, 1545, -5, 1, 104});
+
+        CHECK_EQ(real_domain(p).length(),       500);
+        CHECK_EQ(domain_fluxes(p).length(),     525);
+        CHECK_EQ(domain_advection(p).length(),  505);
+        CHECK_EQ(complete_domain(p).length(),  1650);
+
+        CHECK_EQ(real_domain(p).row_length(),      100);
+        CHECK_EQ(domain_fluxes(p).row_length(),    105);
+        CHECK_EQ(domain_advection(p).row_length(), 101);
+        CHECK_EQ(complete_domain(p).row_length(),  110);
+
+        CHECK_EQ(real_domain(p).col_length(),       5);
+        CHECK_EQ(domain_fluxes(p).col_length(),     5);
+        CHECK_EQ(domain_advection(p).col_length(),  5);
+        CHECK_EQ(complete_domain(p).col_length(),  15);
+
+        CHECK_EQ(real_domain(p).begin(),      555);
+        CHECK_EQ(domain_fluxes(p).begin(),    553);
+        CHECK_EQ(domain_advection(p).begin(), 555);
+        CHECK_EQ(complete_domain(p).begin(),    0);
+
+        CHECK_EQ(real_domain(p).end(),      1094);
+        CHECK_EQ(domain_fluxes(p).end(),    1097);
+        CHECK_EQ(domain_advection(p).end(), 1095);
+        CHECK_EQ(complete_domain(p).end(),  1649);
+    }
+
+    SUBCASE("Ranges") {
+        SUBCASE("1D") {
+            auto [range, inner_range] = real_domain(p).iter1D();
+
+            CHECK_EQ(range.start, 0);
+            CHECK_EQ(range.end, 500);
+            CHECK_EQ(range.length(), 500);
+
+            CHECK_EQ(inner_range.start, 555);
+            CHECK_EQ(inner_range.scale_index(0), 555);
+        }
+
+        SUBCASE("2D") {
+            auto domain = real_domain(p);
+            auto [range, inner_range] = domain.iter2D();
+
+            CHECK_EQ(range.start, 0);
+            CHECK_EQ(range.end, 500);
+            CHECK_EQ(range.length(), 500);
+
+            CHECK_EQ(inner_range.main_range_start, 555);
+            CHECK_EQ(inner_range.main_range_step, 110);
+            CHECK_EQ(inner_range.row_range_start, 0);
+            CHECK_EQ(inner_range.row_range_length, 100);
+
+            CHECK_EQ(inner_range.scale_index(range.start), domain.begin());
+            CHECK_EQ(inner_range.scale_index(range.end-1),   domain.end());  // range.end is exclusive, domain.end() is inclusive => -1
+            CHECK_EQ(inner_range.scale_index(range.start +   inner_range.row_range_length), domain.begin() +   p.row_length);
+            CHECK_EQ(inner_range.scale_index(range.start + 2*inner_range.row_range_length), domain.begin() + 2*p.row_length);
+        }
+    }
+
+    SUBCASE("Boundary Conditions") {
+        int disp;
+        DomainRange dr;
+
+        dr = boundary_conditions_domain(p, Side::Bottom, disp);
+        CHECK_EQ(dr.begin(),  445);
+        CHECK_EQ(dr.end(),    544);
+        CHECK_EQ(dr.length(), 100);
+        CHECK_EQ(disp,        110);
+
+        dr = boundary_conditions_domain(p, Side::Left, disp);
+        CHECK_EQ(dr.begin(),  554);
+        CHECK_EQ(dr.end(),    994);
+        CHECK_EQ(dr.length(),   5);
+        CHECK_EQ(disp,          1);
+
+        dr = boundary_conditions_domain(p, Side::Right, disp);
+        CHECK_EQ(dr.begin(),  655);
+        CHECK_EQ(dr.end(),   1095);
+        CHECK_EQ(dr.length(),   5);
+        CHECK_EQ(disp,         -1);
+
+        dr = boundary_conditions_domain(p, Side::Top, disp);
+        CHECK_EQ(dr.begin(), 1105);
+        CHECK_EQ(dr.end(),   1204);
+        CHECK_EQ(dr.length(), 100);
+        CHECK_EQ(disp,       -110);
     }
 
     SUBCASE("Indexes") {

@@ -75,7 +75,7 @@ std::tuple<Range, InnerRange1D> DomainRange::iter1D() const
 {
     return {
             { 0, static_cast<Idx>(length()) },
-            { begin() }
+            { begin(), row_step }
     };
 }
 
@@ -97,5 +97,5 @@ long DomainRange::begin() const
 
 long DomainRange::end() const
 {
-    return range_last(col_start, col_step, col_end) + range_last(row_start, row_step, row_end) - 1;
+    return range_last(col_start, col_step, col_end) + range_last(row_start, row_step, row_end);
 }

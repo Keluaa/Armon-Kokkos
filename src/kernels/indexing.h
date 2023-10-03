@@ -39,9 +39,10 @@ struct Range {
  */
 struct InnerRange1D {
     Idx start;
+    Idx step;
 
     [[nodiscard]] KOKKOS_INLINE_FUNCTION
-    Idx scale_index(UIdx i) const { return static_cast<Idx>(i) + start; }
+    Idx scale_index(UIdx i) const { return static_cast<Idx>(i) * step + start; }
 };
 
 
@@ -67,8 +68,8 @@ struct InnerRange2D {
     Idx scale_index(UIdx i) const {
         Idx ix = static_cast<Idx>(i / row_range_length);
         Idx iy = static_cast<Idx>(i % row_range_length);
-        Idx j = (main_range_start + ix * main_range_step) - 1;
-        return row_range_start + iy + j - /* to 0-index again */ 1;
+        Idx j = main_range_start + ix * main_range_step;
+        return row_range_start + iy + j;
     }
 };
 
@@ -77,7 +78,7 @@ struct InnerRange2D {
  * Represents a 2D iteration on a 2D array, using two ranges, one along the columns, another along the rows.
  */
 struct DomainRange {
-    // `col_end` and `row_end` are exclusive
+    // `col_end` and `row_end` are inclusive
     long col_start, col_step, col_end;
     long row_start, row_step, row_end;
 
@@ -89,10 +90,15 @@ struct DomainRange {
     [[nodiscard]] unsigned long length() const;
 
     [[nodiscard]] long begin() const;
-    [[nodiscard]] long end() const;  // exclusive
+    [[nodiscard]] long end() const;  // inclusive
 
     [[nodiscard]] std::tuple<Range, InnerRange1D> iter1D() const;
     [[nodiscard]] std::tuple<Range, InnerRange2D> iter2D() const;
+
+    bool operator==(const DomainRange& other) const {
+        return col_start == other.col_start && col_step == other.col_step && col_end == other.col_end
+            && row_start == other.row_start && row_step == other.row_step && row_end == other.row_end;
+    }
 };
 
 

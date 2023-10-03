@@ -35,7 +35,7 @@ DomainRange complete_domain(const Params& p);
  *  `DomainRange` over all cells in the boundary region of `side`. `stride` and `disp` are iteration variables needed
  *  by the boundary conditions kernel.
  */
-DomainRange boundary_conditions_domain(const Params& p, Side side, int& stride, int& disp);
+DomainRange boundary_conditions_domain(const Params& p, Side side, int& disp);
 
 
 /**

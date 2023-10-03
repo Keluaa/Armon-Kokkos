@@ -51,7 +51,7 @@ void advection_second_order(const Range& range, const InnerRange2D& inner_range,
 
 extern "C"
 void boundary_conditions(const Range& range, const InnerRange1D& inner_range,
-                         Idx stride, Idx disp, Idx stencil_width,
+                         Idx disp, Idx stencil_width,
                          flt_t u_factor, flt_t v_factor,
                          view& rho, view& umat, view& vmat, view& pmat, view& cmat, view& gmat, view& Emat);
 

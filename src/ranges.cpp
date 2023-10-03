@@ -63,9 +63,9 @@ DomainRange complete_domain(const Params& p)
 }
 
 
-DomainRange boundary_conditions_domain(const Params& p, Side side, int& stride, int& disp)
+DomainRange boundary_conditions_domain(const Params& p, Side side, int& disp)
 {
-    int i_start, loop_range;
+    int i_start, stride, loop_range;
 
     switch (side) {
     case Side::Left:
@@ -100,7 +100,7 @@ DomainRange boundary_conditions_domain(const Params& p, Side side, int& stride, 
     // length() == loop_range
     // begin()  == i_start
     return {
-        0, 1, 1,
-        i_start, 1, loop_range
+        0, 1, 0,
+        i_start, stride, i_start + loop_range * stride - stride
     };
 }

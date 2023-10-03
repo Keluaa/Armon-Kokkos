@@ -40,7 +40,6 @@ Params get_reference_params(Test test_case)
     params.projection = Projection::Euler_2nd;
     params.limiter = Limiter::Minmod;
     params.axis_splitting = AxisSplitting::Sequential;
-    params.single_comm_per_axis_pass = false;  // TODO: false for now since near perfect masking is required otherwise
 
     params.nb_ghosts = 5;
     params.nx = 100;
@@ -51,6 +50,12 @@ Params get_reference_params(Test test_case)
 
     params.verbose = 5;
     params.write_output = false;
+
+#if USE_SINGLE_PRECISION
+    params.output_precision = 9;
+#else
+    params.output_precision = 17;
+#endif
 
     params.init();
 

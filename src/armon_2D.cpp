@@ -125,12 +125,12 @@ void init_test(const Params& p, Data& d)
 
 void boundary_conditions(const Params& p, Data& d, Side side)
 {
-    int stride, disp;
-    auto domain_range = boundary_conditions_domain(p, side, stride, disp);
+    int disp;
+    auto domain_range = boundary_conditions_domain(p, side, disp);
     auto [u_factor, v_factor] = p.test_case->boundaryCondition(side);
     auto [range, inner_range] = domain_range.iter1D();
     boundary_conditions(range, inner_range,
-                        stride, disp, p.stencil_width,
+                        disp, p.stencil_width,
                         u_factor, v_factor,
                         d.rho, d.umat, d.vmat, d.pmat, d.cmat, d.gmat, d.Emat);
 }
