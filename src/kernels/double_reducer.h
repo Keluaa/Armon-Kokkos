@@ -49,20 +49,6 @@ public:
     result_view_type view() const { return value; }
 
     KOKKOS_INLINE_FUNCTION
-    DoubleReducer()
-        : delegate()
-        , value()
-    { }
-
-    KOKKOS_INLINE_FUNCTION
-    DoubleReducer(Reducer&& r1, Reducer&& r2)
-        : delegate(r1)
-        , value()
-    {
-        value() = std::make_tuple(r1.reference(), r2.reference());
-    }
-
-    KOKKOS_INLINE_FUNCTION
     DoubleReducer(value_type& value)
         : delegate(std::get<0>(value))  // Dummy constructor call
         , value(&value)
@@ -73,6 +59,12 @@ public:
         : delegate(std::get<0>(value()))  // Dummy constructor call
         , value(value)
     { }
+
+    static DoubleReducer fromReducers(typename Reducer::value_type& r1, typename Reducer::value_type& r2)
+    {
+        value_type tuple = std::make_tuple(r1, r2);
+        return DoubleReducer(tuple);
+    }
 };
 
 

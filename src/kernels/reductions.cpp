@@ -27,7 +27,7 @@ void conservation_vars(const Range& range, const InnerRange1D& inner_range, flt_
                        const view& rho, const view& Emat, const mask_view& domain_mask,
                        flt_t& total_mass, flt_t& total_energy)
 {
-    auto reducer = DoubleReducer(Kokkos::Sum<flt_t>(total_mass), Kokkos::Sum<flt_t>(total_energy));
+    auto reducer = DoubleReducer<Kokkos::Sum<flt_t>>::fromReducers(total_mass, total_energy);
     using Reducer_val = decltype(reducer)::value_type;
 
     flt_t ds = dx * dx;
