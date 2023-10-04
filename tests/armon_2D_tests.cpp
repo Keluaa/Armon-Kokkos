@@ -282,12 +282,13 @@ TEST_SUITE("Comparison with reference") {
         return !exists;
     }
 
-    void run_comparison(Test test, const std::string& ref_data_path)
+    void run_comparison(Test test, const std::string& ref_data_path, flt_t tol = 1e-13)
     {
         init_kokkos();
 
         Params ref_params = get_reference_params(test);
         REQUIRE(ref_params.check());
+        ref_params.comparison_tolerance = tol;
 
         Data data(ref_params.nb_cells);
         HostData host_data = data.as_mirror();
@@ -303,7 +304,7 @@ TEST_SUITE("Comparison with reference") {
 
         auto [ref_data, ref_dt, ref_cycles] = load_reference_data(ref_params, ref_data_path);
 
-        check_flt_eq("Final time steps are different.", ref_dt, dt);
+        check_flt_eq("Final time steps are different.", ref_dt, dt, tol);
         CHECK_EQ(cycles, ref_cycles);
 
         int diff_count = compare_with_reference(ref_params, ref_data, host_data);

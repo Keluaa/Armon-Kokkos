@@ -94,7 +94,7 @@ struct Params
 
     // Comparison
     bool compare = false;
-    flt_t comparison_tolerance = 1e-10;
+    flt_t comparison_tolerance = 1e-13;
 
     int min_ghosts() const;
     void init();

@@ -33,6 +33,7 @@ enum class Side : int {
 inline std::string to_string(Axis axis)
 {
     switch (axis) {
+    default: [[fallthrough]];
     case Axis::X: return "X";
     case Axis::Y: return "Y";
     }
@@ -42,6 +43,7 @@ inline std::string to_string(Axis axis)
 inline std::string to_string(Side side)
 {
     switch (side) {
+    default: [[fallthrough]];
     case Side::Left:   return "Left";
     case Side::Right:  return "Right";
     case Side::Top:    return "Top";

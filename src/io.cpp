@@ -74,12 +74,6 @@ void load_data(const Params& p, HostData& d, std::istream& file)
 }
 
 
-bool is_approx(flt_t a, flt_t b, flt_t tol)
-{
-    return std::abs(a - b) <= std::max(tol * std::max(std::abs(a), std::abs(b)), tol);
-}
-
-
 int compare_with_reference(const Params& params, const HostData& ref_data, const HostData& data)
 {
     auto ref_vars = ref_data.main_vars_array();
@@ -106,15 +100,15 @@ int compare_with_reference(const Params& params, const HostData& ref_data, const
                 bool is_eq = is_approx(ref_val, val, params.comparison_tolerance);
                 row_diff_count += !is_eq;
 
-                flt_t diff = std::abs(ref_val - val);
-                if (diff > max_diff) {
-                    max_diff = diff;
-                    max_ulp = max_diff / std::abs(ref_val * std::numeric_limits<flt_t>::epsilon());
-                }
-
                 if (!is_eq) {
                     diff_start = std::min(idx, diff_start);
                     diff_end = std::max(idx, diff_end);
+
+                    flt_t diff = std::abs(ref_val - val);
+                    if (diff > max_diff) {
+                        max_diff = diff;
+                        max_ulp = max_diff / std::abs(ref_val * std::numeric_limits<flt_t>::epsilon());
+                    }
                 }
             }
 
