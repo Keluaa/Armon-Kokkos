@@ -15,6 +15,15 @@
  * supporting this syntax difficult. Furthermore, this syntax is currently not supported by all backends.
  *
  * Using this Reducer class shouldn't introduce any overhead (hopefully).
+ *
+ * Usage:
+ * ```
+ *     T a, b;
+ *     auto value_tuple = std::make_tuple(a, b);
+ *     auto reducer = DoubleReducer<Kokkos::Min<T>>(value_tuple);
+ *     Kokkos::parallel_reduce(policy, functor, reducer);
+ *     std::tie(a, b) = value_tuple;
+ * ```
  */
 template<typename Reducer>
 class DoubleReducer
@@ -59,12 +68,6 @@ public:
         : delegate(std::get<0>(value()))  // Dummy constructor call
         , value(value)
     { }
-
-    static DoubleReducer fromReducers(typename Reducer::value_type& r1, typename Reducer::value_type& r2)
-    {
-        value_type tuple = std::make_tuple(r1, r2);
-        return DoubleReducer(tuple);
-    }
 };
 
 

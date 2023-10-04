@@ -27,7 +27,8 @@ void conservation_vars(const Range& range, const InnerRange1D& inner_range, flt_
                        const view& rho, const view& Emat, const mask_view& domain_mask,
                        flt_t& total_mass, flt_t& total_energy)
 {
-    auto reducer = DoubleReducer<Kokkos::Sum<flt_t>>::fromReducers(total_mass, total_energy);
+    auto reducer_tuple = std::make_tuple(total_mass, total_energy);
+    auto reducer = DoubleReducer<Kokkos::Sum<flt_t>>(reducer_tuple);
     using Reducer_val = decltype(reducer)::value_type;
 
     flt_t ds = dx * dx;
@@ -40,4 +41,6 @@ void conservation_vars(const Range& range, const InnerRange1D& inner_range, flt_
         std::get<0>(mass_and_energy) += cell_mass;
         std::get<1>(mass_and_energy) += cell_energy;
     }, reducer);
+
+    std::tie(total_mass, total_energy) = reducer_tuple;
 }
