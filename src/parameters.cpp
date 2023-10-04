@@ -8,6 +8,16 @@
 #include "Kokkos_Core.hpp"
 
 
+int Params::min_ghosts() const
+{
+    int min_ghosts = 1;
+    min_ghosts += scheme == Scheme::GAD;
+    min_ghosts += projection == Projection::Euler_2nd;
+    min_ghosts += (projection == Projection::Euler_2nd) && (scheme == Scheme::GAD);
+    return min_ghosts;
+}
+
+
 void Params::init()
 {
     switch (test) {
@@ -34,8 +44,8 @@ void Params::set_default_values()
         domain_size = test_case->default_domain_size();
     if (is_ieee754_nan(domain_origin[0]) || is_ieee754_nan(domain_origin[1]))
         domain_origin = test_case->default_domain_origin();
-    if (stencil_width == 0)
-        stencil_width = nb_ghosts;
+    if (stencil_width == -1)
+        stencil_width = min_ghosts();
 }
 
 
@@ -79,10 +89,7 @@ bool Params::check() const
         return false;
     }
 
-    int min_ghosts = 1;
-    min_ghosts += scheme == Scheme::GAD;
-    min_ghosts += projection == Projection::Euler_2nd;
-    min_ghosts += (projection == Projection::Euler_2nd) && (scheme == Scheme::GAD);
+    int min_ghosts = this->min_ghosts();
 
     if (nb_ghosts < min_ghosts) {
         std::cerr << "WARNING: There is not enough ghost cells for the given parameters. Expected at least "

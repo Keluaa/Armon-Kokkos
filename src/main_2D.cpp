@@ -18,7 +18,7 @@ Options:
     --limiter <limiter>     Limiter for the second order scheme: 'None', 'Minmod' (default), 'Superbee'
     --cells Nx,Ny           Number of cells in the 2D mesh
     --nghost N              Number of ghost cells around the 2D domain
-    --stencil N             Width of the stencil in cells. Defaults to the number of ghost cells.
+    --stencil N             Width of the stencil in cells. Defaults to the minimum number of ghost cells.
     --cycle N               Maximum number of iterations
     --riemann <solver>      Riemann solver: 'acoustic' only
     --projection <scheme>   Projection scheme: 'euler' (1st order) or 'euler_2nd' (2nd order)

@@ -50,7 +50,7 @@ struct Params
     flt_t dx = 0;
     flt_t cfl = 0;
     flt_t Dt = 0;
-    int stencil_width = 0;
+    int stencil_width = -1;  // Use min_ghost by default
     bool cst_dt = false;
     bool dt_on_even_cycles = false;
     std::array<flt_t, 2> domain_size = { 0, 0 };
@@ -96,6 +96,7 @@ struct Params
     bool compare = false;
     flt_t comparison_tolerance = 1e-10;
 
+    int min_ghosts() const;
     void init();
     void set_default_values();
     void init_indexing();
