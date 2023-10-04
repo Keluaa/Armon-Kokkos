@@ -92,6 +92,7 @@ struct DomainRange {
     [[nodiscard]] long begin() const;
     [[nodiscard]] long end() const;  // inclusive
 
+    [[nodiscard]] std::tuple<Range, InnerRange1D> directIter1D() const;
     [[nodiscard]] std::tuple<Range, InnerRange1D> iter1D() const;
     [[nodiscard]] std::tuple<Range, InnerRange2D> iter2D() const;
 

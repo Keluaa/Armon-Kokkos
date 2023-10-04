@@ -71,10 +71,19 @@ unsigned long DomainRange::length() const
 }
 
 
-std::tuple<Range, InnerRange1D> DomainRange::iter1D() const
+std::tuple<Range, InnerRange1D> DomainRange::directIter1D() const
 {
     return {
             { 0, static_cast<Idx>(length()) },
+            { begin(), row_step }
+    };
+}
+
+
+std::tuple<Range, InnerRange1D> DomainRange::iter1D() const
+{
+    return {
+            { 0, end() - begin() + 1 },
             { begin(), row_step }
     };
 }

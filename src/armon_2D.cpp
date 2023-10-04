@@ -133,7 +133,7 @@ void boundary_conditions(const Params& p, Data& d, Side side)
     int disp;
     auto domain_range = boundary_conditions_domain(p, side, disp);
     auto [u_factor, v_factor] = p.test_case->boundaryCondition(side);
-    auto [range, inner_range] = domain_range.iter1D();
+    auto [range, inner_range] = domain_range.directIter1D();
     boundary_conditions(range, inner_range,
                         disp, p.stencil_width,
                         u_factor, v_factor,

@@ -119,27 +119,29 @@ TEST_CASE("indexing") {
 
     SUBCASE("Ranges") {
         SUBCASE("1D") {
-            auto [range, inner_range] = real_domain(p).iter1D();
+            auto domain = real_domain(p);
+            auto [range, inner_range] = domain.iter1D();
 
-            CHECK_EQ(range.start, 0);
-            CHECK_EQ(range.end, 500);
-            CHECK_EQ(range.length(), 500);
+            CHECK_EQ(range.start,      0);
+            CHECK_EQ(range.end,      540);
+            CHECK_EQ(range.length(), 540);
 
             CHECK_EQ(inner_range.start, 555);
-            CHECK_EQ(inner_range.scale_index(0), 555);
+            CHECK_EQ(inner_range.scale_index(range.start), domain.begin());
+            CHECK_EQ(inner_range.scale_index(range.end-1),   domain.end());
         }
 
         SUBCASE("2D") {
             auto domain = real_domain(p);
             auto [range, inner_range] = domain.iter2D();
 
-            CHECK_EQ(range.start, 0);
-            CHECK_EQ(range.end, 500);
+            CHECK_EQ(range.start,      0);
+            CHECK_EQ(range.end,      500);
             CHECK_EQ(range.length(), 500);
 
             CHECK_EQ(inner_range.main_range_start, 555);
-            CHECK_EQ(inner_range.main_range_step, 110);
-            CHECK_EQ(inner_range.row_range_start, 0);
+            CHECK_EQ(inner_range.main_range_step,  110);
+            CHECK_EQ(inner_range.row_range_start,    0);
             CHECK_EQ(inner_range.row_range_length, 100);
 
             CHECK_EQ(inner_range.scale_index(range.start), domain.begin());
@@ -179,9 +181,9 @@ TEST_CASE("indexing") {
     }
 
     SUBCASE("Indexes") {
-        CHECK_EQ(index_1D(p, -1, 0), 554);
-        CHECK_EQ(index_1D(p, 0, -1), 445);
-        CHECK_EQ(index_1D(p, p.nx, 0), 655);
+        CHECK_EQ(index_1D(p, -1, 0),    554);
+        CHECK_EQ(index_1D(p, 0, -1),    445);
+        CHECK_EQ(index_1D(p, p.nx, 0),  655);
         CHECK_EQ(index_1D(p, 0, p.ny), 1105);
     }
 }
@@ -233,11 +235,11 @@ TEST_SUITE("NaNs check") {
         CHECK_EQ(cycles, expected_cycles);
     }
 
-    TEST_CASE("Sod")       { run_nan_check(Test::Sod, 45);       }
-    TEST_CASE("Sod_y")     { run_nan_check(Test::Sod_y, 45);     }
-    TEST_CASE("Sod_circ")  { run_nan_check(Test::Sod_circ, 44);  }
+    TEST_CASE("Sod")       { run_nan_check(Test::Sod,       45); }
+    TEST_CASE("Sod_y")     { run_nan_check(Test::Sod_y,     45); }
+    TEST_CASE("Sod_circ")  { run_nan_check(Test::Sod_circ,  44); }
     TEST_CASE("Bizarrium") { run_nan_check(Test::Bizarrium, 76); }
-    TEST_CASE("Sedov")     { run_nan_check(Test::Sedov, 568);    }
+    TEST_CASE("Sedov")     { run_nan_check(Test::Sedov,    568); }
 }
 
 
@@ -262,11 +264,11 @@ TEST_SUITE("Conservation") {
         CHECK_EQ(cycles, expected_cycles);
     }
 
-    TEST_CASE("Sod")      { run_test(Test::Sod, 45);      }
-    TEST_CASE("Sod_y")    { run_test(Test::Sod_y, 45);    }
+    TEST_CASE("Sod")      { run_test(Test::Sod,      45); }
+    TEST_CASE("Sod_y")    { run_test(Test::Sod_y,    45); }
     TEST_CASE("Sod_circ") { run_test(Test::Sod_circ, 44); }
     // Bizarrium is not conservative
-    TEST_CASE("Sedov")    { run_test(Test::Sedov, 568);   }
+    TEST_CASE("Sedov")    { run_test(Test::Sedov,   568); }
 }
 
 
