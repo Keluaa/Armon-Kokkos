@@ -175,7 +175,7 @@ void Params::print() const
         printf(" - no output\n");
     }
     if (compare) {
-        printf(" - comparison: true\n");
+        printf(" - comparison: true, tol: %g\n", comparison_tolerance);
     }
 }
 
@@ -197,8 +197,7 @@ void Params::update_axis(Axis axis)
     }
 }
 
-
-std::vector<std::pair<Axis, flt_t>> Params::split_axes(int cycle) const
+std::vector<std::pair<Axis, flt_t>> Params::split_axes() const
 {
     using Axis = Axis;
     Axis axis_1, axis_2;

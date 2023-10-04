@@ -201,10 +201,14 @@ bool parse_arguments(Params& p, int argc, char** argv)
             p.compare = strtol(argv[i+1], nullptr, 2);
             i++;
         }
+        else if (strcmp(argv[i], "--comparison-tolerance") == 0) {
+            p.comparison_tolerance = strtod(argv[i+1], nullptr);
+            i++;
+        }
         else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             puts(USAGE);
-	    Kokkos::finalize();
-	    exit(0);
+            Kokkos::finalize();
+            exit(0);
         }
         else {
             fprintf(stderr, "Wrong option: %s\n", argv[i]);

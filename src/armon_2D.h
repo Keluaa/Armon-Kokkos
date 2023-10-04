@@ -9,29 +9,30 @@
 #include "data.h"
 
 
-void numerical_fluxes(const Params& p, Data& d, flt_t dt);
+void numerical_fluxes(const Params& p, Data& d);
 
 void update_EOS(const Params& p, Data& d);
 
-void cell_update(const Params& p, Data& d, flt_t dt);
+void cell_update(const Params& p, Data& d);
 
 void init_test(const Params& p, Data& d, bool debug_indexes = false);
 
 void boundary_conditions(const Params& p, Data& d, Side side);
 void boundary_conditions(const Params& p, Data& d);
 
-void euler_projection(const Params& p, Data& d, flt_t dt,
+void euler_projection(const Params& p, Data& d,
                       const view& advection_rho, const view& advection_urho,
                       const view& advection_vrho, const view& advection_Erho);
-void advection_first_order(const Params& p, Data& d, flt_t dt,
+void advection_first_order(const Params& p, Data& d,
                            view& advection_rho, view& advection_urho,
                            view& advection_vrho, view& advection_Erho);
-void advection_second_order(const Params& p, Data& d, flt_t dt,
+void advection_second_order(const Params& p, Data& d,
                             view& advection_rho, view& advection_urho,
                             view& advection_vrho, view& advection_Erho);
-void projection_remap(const Params& p, Data& d, flt_t dt);
+void projection_remap(const Params& p, Data& d);
 
-flt_t dt_CFL(const Params& p, Data& d, flt_t dta);
+flt_t local_time_step(const Params& p, Data& d, flt_t prev_dt);
+void time_step(Params& p, Data& d);
 
 std::tuple<flt_t, flt_t> conservation_vars(const Params& p, Data& d);
 

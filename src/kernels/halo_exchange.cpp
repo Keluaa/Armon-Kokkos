@@ -14,7 +14,6 @@ void boundary_conditions(const Range& range, const InnerRange1D& inner_range,
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx i = inner_range.scale_index(lin_i);
-
         Idx ip = i + disp;
 
         //   ghosts | real

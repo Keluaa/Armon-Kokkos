@@ -52,6 +52,7 @@ struct Params
     flt_t Dt = 0;
     int stencil_width = 0;
     bool cst_dt = false;
+    bool dt_on_even_cycles = false;
     std::array<flt_t, 2> domain_size = { 0, 0 };
     std::array<flt_t, 2> domain_origin = { NAN, NAN };  // NAN -> use the default value for the current test
 
@@ -71,6 +72,13 @@ struct Params
 
     int s = 0; // Stride
 
+    // Solver state
+    int cycle = 0;
+    flt_t cycle_dt = 0.;  // Scaled time step, with the axis splitting factor
+    flt_t current_cycle_dt = 0.;  // Unscaled time step
+    flt_t next_cycle_dt = 0.;
+    flt_t time = 0.;
+
     // Computation bounds
     int max_cycles = 100;
     flt_t max_time = 0;
@@ -86,6 +94,7 @@ struct Params
 
     // Comparison
     bool compare = false;
+    flt_t comparison_tolerance = 1e-10;
 
     void init();
     void set_default_values();
@@ -94,7 +103,7 @@ struct Params
     void print() const;
 
     void update_axis(Axis axis);
-    [[nodiscard]] std::vector<std::pair<Axis, flt_t>> split_axes(int cycle) const;
+    [[nodiscard]] std::vector<std::pair<Axis, flt_t>> split_axes() const;
 };
 
 #endif //ARMON_KOKKOS_PARAMETERS_H

@@ -29,7 +29,7 @@ struct TestCase {
     virtual flt_t default_CFL() const = 0;
     virtual flt_t default_max_time() const = 0;
     virtual std::array<flt_t, 2> boundaryCondition(Side side) const = 0;
-    virtual flt_t test_option(flt_t dx, flt_t dy) const { return 0.; }
+    virtual flt_t test_option(flt_t, flt_t) const { return 0.; }
 };
 
 

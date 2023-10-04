@@ -30,4 +30,23 @@ enum class Side : int {
 };
 
 
+inline std::string to_string(Axis axis)
+{
+    switch (axis) {
+    case Axis::X: return "X";
+    case Axis::Y: return "Y";
+    }
+}
+
+
+inline std::string to_string(Side side)
+{
+    switch (side) {
+    case Side::Left:   return "Left";
+    case Side::Right:  return "Right";
+    case Side::Top:    return "Top";
+    case Side::Bottom: return "Bottom";
+    }
+}
+
 #endif //ARMON_KOKKOS_COMMON_H

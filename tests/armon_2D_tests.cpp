@@ -7,6 +7,7 @@
 #include "io.h"
 #include "armon_2D.h"
 #include "ranges.h"
+#include "utils.h"
 
 #include "reference.h"
 
@@ -41,6 +42,7 @@ struct doctest::StringMaker<DomainRange>
 
 bool check_flt_eq(const std::string& msg, flt_t expected_value, flt_t value, flt_t tol = 1e-13)
 {
+    CHECK(is_ieee754_finite(value));
     bool eq = is_approx(expected_value, value, tol);
     CHECK(eq);
     if (!eq) {
