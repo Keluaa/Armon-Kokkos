@@ -33,16 +33,18 @@ struct TestCase {
 };
 
 
+constexpr std::array<flt_t, 2> BC_FreeFlow    = {  1,  1 };
+constexpr std::array<flt_t, 2> BC_Dirichlet_X = { -1,  1 };
+constexpr std::array<flt_t, 2> BC_Dirichlet_Y = {  1, -1 };
+
+
 struct TestSod : TestCase {
     void init_params(TestParams& test_params) const override;
     flt_t default_CFL() const override { return 0.95; }
     flt_t default_max_time() const override { return 0.20; }
     std::array<flt_t, 2> boundaryCondition(Side side) const override
     {
-        if (side == Side::Left || side == Side::Right)
-            return { -1, 1 };
-        else
-            return { 1, 1 };
+        return (side == Side::Left || side == Side::Right) ? BC_Dirichlet_X : BC_FreeFlow;
     }
 
     static KOKKOS_INLINE_FUNCTION
@@ -53,10 +55,7 @@ struct TestSod : TestCase {
 struct TestSodY : TestSod {
     std::array<flt_t, 2> boundaryCondition(Side side) const override
     {
-        if (side == Side::Left || side == Side::Right)
-            return { 1, 1 };
-        else
-            return { 1, -1 };
+        return (side == Side::Left || side == Side::Right) ? BC_FreeFlow : BC_Dirichlet_Y;
     }
 
     static KOKKOS_INLINE_FUNCTION
@@ -67,10 +66,7 @@ struct TestSodY : TestSod {
 struct TestSodCirc : TestSod {
     std::array<flt_t, 2> boundaryCondition(Side side) const override
     {
-        if (side == Side::Left || side == Side::Right)
-            return { -1, 1 };
-        else
-            return { 1, -1 };
+        return (side == Side::Left || side == Side::Right) ? BC_Dirichlet_X : BC_Dirichlet_Y;
     }
 
     static KOKKOS_INLINE_FUNCTION
@@ -87,10 +83,12 @@ struct TestBizarrium : TestCase {
     flt_t default_max_time() const override { return 80e-6; }
     std::array<flt_t, 2> boundaryCondition(Side side) const override
     {
-        if (side == Side::Left || side == Side::Right)
-            return { -1, 1 };
+        if (side == Side::Left)
+            return BC_Dirichlet_X;
+        else if (side == Side::Right)
+            return BC_FreeFlow;
         else
-            return { 1, 1 };
+            return BC_Dirichlet_Y;
     }
 
     static KOKKOS_INLINE_FUNCTION
@@ -109,13 +107,7 @@ struct TestSedov : TestCase {
     std::array<flt_t, 2> default_domain_origin() const override { return { -1, -1 }; }
     flt_t default_CFL() const override { return 0.7; }
     flt_t default_max_time() const override { return 1.0; }
-    std::array<flt_t, 2> boundaryCondition(Side side) const override
-    {
-        if (side == Side::Left || side == Side::Right)
-            return { -1, 1 };
-        else
-            return { 1, 1 };
-    }
+    std::array<flt_t, 2> boundaryCondition(Side) const override { return BC_FreeFlow; }
 
     KOKKOS_INLINE_FUNCTION
     bool region_high(flt_t x, flt_t y) const

@@ -325,7 +325,6 @@ TEST_SUITE("Comparison with reference") {
     std::string ref_path_sod_circ = get_reference_data_path(Test::Sod_circ);
     bool sod_circ_missing = check_if_ref_file_exists(ref_path_sod_circ);
     TEST_CASE("ref_Sod_circ" * doctest::skip(sod_circ_missing)) {
-        // TODO: diverges from the correct solution
         run_comparison(Test::Sod_circ, ref_path_sod_circ);
     }
 
@@ -333,15 +332,12 @@ TEST_SUITE("Comparison with reference") {
     bool bizarrium_missing = check_if_ref_file_exists(ref_path_bizarrium);
     TEST_CASE("ref_Bizarrium" * doctest::skip(bizarrium_missing)) {
         // TODO: diverges from the correct solution
-        // NOTE: GCC rounds the pressure in the initial call to 'update_EOS' differently from Clang, by a single ulp.
         run_comparison(Test::Bizarrium, ref_path_bizarrium);
     }
 
     std::string ref_path_sedov = get_reference_data_path(Test::Sedov);
     bool sedov_missing = check_if_ref_file_exists(ref_path_sedov);
     TEST_CASE("ref_Sedov" * doctest::skip(sedov_missing)) {
-        // TODO: diverges from the correct solution
-        // NOTE: GCC rounds the pressure in the initial call to 'update_EOS' differently from Clang, by a single ulp.
         run_comparison(Test::Sedov, ref_path_sedov);
     }
 }
