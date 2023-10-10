@@ -61,6 +61,8 @@ endif()
 option(USE_SINGLE_PRECISION "Use float instead of double" OFF)
 option(USE_NVTX "Enable NVTX tracing" OFF)
 option(USE_SIMD_KERNELS "Use team vector loops instead of normal loops" OFF)
+option(CHECK_VIEW_ORDER "Check if Kokkos::View parameters in kernels are in the correct order" OFF)
+option(TRY_ALL_CALLS "Surround all exported kernel functions with a try-catch block" OFF)
 
 if(USE_SINGLE_PRECISION)
     set(PRECISION 1)

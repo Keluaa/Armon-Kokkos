@@ -75,8 +75,8 @@ void numerical_fluxes(const Params& p, Data& d)
     switch (p.riemann) {
     case Riemann::Acoustic:
         switch (p.scheme) {
-        case Scheme::Godunov: return acoustic(range, inner_range, p.s, d.rho, u, d.cmat, d.pmat, d.ustar, d.pstar);
-        case Scheme::GAD:     return acoustic_GAD(range, inner_range, p.s, p.dx, p.cycle_dt, d.rho, u, d.cmat, d.pmat, d.ustar, d.pstar, p.limiter);
+        case Scheme::Godunov: return acoustic(range, inner_range, p.s, d.ustar, d.pstar, d.rho, u, d.pmat, d.cmat);
+        case Scheme::GAD:     return acoustic_GAD(range, inner_range, p.s, p.cycle_dt, p.dx, d.ustar, d.pstar, d.rho, u, d.pmat, d.cmat, p.limiter);
         }
     }
 }
@@ -92,11 +92,10 @@ void update_EOS(const Params& p, Data& d)
     case Test::Sedov:
     {
         const flt_t gamma = 1.4;
-        perfect_gas_EOS(range, inner_range, gamma, d.rho, d.umat, d.vmat, d.Emat, d.cmat, d.pmat, d.gmat);
+        perfect_gas_EOS(range, inner_range, gamma, d.rho, d.Emat, d.umat, d.vmat, d.pmat, d.cmat, d.gmat);
         break;
     }
-    case Test::Bizarrium:
-        bizarrium_EOS(range, inner_range, d.rho, d.umat, d.vmat, d.Emat, d.cmat, d.pmat, d.gmat);
+    case Test::Bizarrium:bizarrium_EOS(range, inner_range, d.rho, d.umat, d.vmat, d.Emat, d.pmat, d.cmat, d.gmat);
         break;
     }
 }
@@ -106,7 +105,7 @@ void cell_update(const Params& p, Data& d)
 {
     auto [range, inner_range] = domain_cell_update(p).iter2D();
     view& u = p.current_axis == Axis::X ? d.umat : d.vmat;
-    cell_update(range, inner_range, p.s, p.dx, p.cycle_dt, d.ustar, d.pstar, d.Emat, d.rho, u);
+    cell_update(range, inner_range, p.s, p.dx, p.cycle_dt, d.ustar, d.pstar, d.rho, u, d.Emat);
 }
 
 
@@ -120,8 +119,8 @@ void init_test(const Params& p, Data& d, bool debug_indexes)
 
     init_test(range, inner_range,
               p.row_length, p.nb_ghosts,
-              p.nx, p.ny, p.nx, p.ny, 0, 0,
-              p.domain_size[0], p.domain_size[1], p.domain_origin[0], p.domain_origin[1],
+              p.nx, p.ny, p.domain_size[0], p.domain_size[1], p.domain_origin[0], p.domain_origin[1],
+              0, 0, p.nx, p.ny,
               d.x, d.y, d.rho, d.Emat, d.umat, d.vmat,
               d.domain_mask, d.pmat, d.cmat, d.ustar, d.pstar,
               p.test, debug_indexes, test_option);
@@ -135,7 +134,7 @@ void boundary_conditions(const Params& p, Data& d, Side side)
     auto [u_factor, v_factor] = p.test_case->boundaryCondition(side);
     auto [range, inner_range] = domain_range.directIter1D();
     boundary_conditions(range, inner_range,
-                        disp, p.stencil_width,
+                        p.stencil_width, disp,
                         u_factor, v_factor,
                         d.rho, d.umat, d.vmat, d.pmat, d.cmat, d.gmat, d.Emat);
 }

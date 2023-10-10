@@ -4,6 +4,7 @@
 #include "kernels.h"
 #include "parallel_kernels.h"
 #include "limiters.h"
+#include "utils.h"
 
 
 KOKKOS_INLINE_FUNCTION std::tuple<flt_t, flt_t> acoustic_Godunov(
@@ -20,9 +21,10 @@ KOKKOS_INLINE_FUNCTION std::tuple<flt_t, flt_t> acoustic_Godunov(
 
 extern "C"
 void acoustic(const Range& range, const InnerRange2D& inner_range, Idx s,
-              const view& rho, const view& u, const view& cmat, const view& pmat,
-              view& ustar, view& pstar)
-{
+              view& ustar, view& pstar,
+              const view& rho, const view& u, const view& pmat, const view& cmat)
+KERNEL_TRY {
+    CHECK_VIEW_LABELS(ustar, pstar, rho, pmat, cmat);
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx i = inner_range.scale_index(lin_i);
@@ -32,14 +34,15 @@ void acoustic(const Range& range, const InnerRange2D& inner_range, Idx s,
         ustar[i] = ustar_i;
         pstar[i] = pstar_i;
     });
-}
+} KERNEL_CATCH
 
 
 template<Limiter L>
-void acoustic_GAD(const Range& range, const InnerRange2D& inner_range, Idx s, flt_t dx, flt_t dt,
-                  const view& rho, const view& u, const view& cmat, const view& pmat,
-                  view& ustar, view& pstar)
+void acoustic_GAD(const Range& range, const InnerRange2D& inner_range, Idx s, flt_t dt, flt_t dx,
+                  view& ustar, view& pstar,
+                  const view& rho, const view& u, const view& pmat, const view& cmat)
 {
+    CHECK_VIEW_LABELS(ustar, pstar, rho, pmat, cmat);
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx i = inner_range.scale_index(lin_i);
@@ -86,15 +89,15 @@ void acoustic_GAD(const Range& range, const InnerRange2D& inner_range, Idx s, fl
 
 
 extern "C"
-void acoustic_GAD(const Range& range, const InnerRange2D& inner_range, Idx s, flt_t dx, flt_t dt,
-                  const view& rho, const view& u, const view& cmat, const view& pmat,
+void acoustic_GAD(const Range& range, const InnerRange2D& inner_range, Idx s, flt_t dt, flt_t dx,
                   view& ustar, view& pstar,
+                  const view& rho, const view& u, const view& pmat, const view& cmat,
                   Limiter limiter)
-{
+KERNEL_TRY {
     switch (limiter) {
-        case Limiter::None:     return acoustic_GAD<Limiter::None    >(range, inner_range, s, dx, dt, rho, u, cmat, pmat, ustar, pstar);
-        case Limiter::Minmod:   return acoustic_GAD<Limiter::Minmod  >(range, inner_range, s, dx, dt, rho, u, cmat, pmat, ustar, pstar);
-        case Limiter::Superbee: return acoustic_GAD<Limiter::Superbee>(range, inner_range, s, dx, dt, rho, u, cmat, pmat, ustar, pstar);
+        case Limiter::None:     return acoustic_GAD<Limiter::None    >(range, inner_range, s, dt, dx, ustar, pstar, rho, u, pmat, cmat);
+        case Limiter::Minmod:   return acoustic_GAD<Limiter::Minmod  >(range, inner_range, s, dt, dx, ustar, pstar, rho, u, pmat, cmat);
+        case Limiter::Superbee: return acoustic_GAD<Limiter::Superbee>(range, inner_range, s, dt, dx, ustar, pstar, rho, u, pmat, cmat);
         default:
             throw std::out_of_range(
                     "Invalid limiter index: " + std::to_string(static_cast<int>(limiter))
@@ -102,4 +105,4 @@ void acoustic_GAD(const Range& range, const InnerRange2D& inner_range, Idx s, fl
                     + " and " + std::to_string(static_cast<int>(Limiter::Superbee))
             );
     }
-}
+} KERNEL_CATCH

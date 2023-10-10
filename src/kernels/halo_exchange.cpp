@@ -3,14 +3,16 @@
 
 #include "kernels.h"
 #include "parallel_kernels.h"
+#include "utils.h"
 
 
 extern "C"
 void boundary_conditions(const Range& range, const InnerRange1D& inner_range,
-                         Idx disp, Idx stencil_width,
+                         Idx stencil_width, Idx disp,
                          flt_t u_factor, flt_t v_factor,
                          view& rho, view& umat, view& vmat, view& pmat, view& cmat, view& gmat, view& Emat)
-{
+KERNEL_TRY {
+    CHECK_VIEW_LABELS(rho, umat, vmat, pmat, cmat, gmat, Emat);
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx i = inner_range.scale_index(lin_i);
@@ -32,16 +34,17 @@ void boundary_conditions(const Range& range, const InnerRange1D& inner_range,
             ip += disp;
         }
     });
-}
+} KERNEL_CATCH
 
 
 extern "C"
-void read_border_array(const Range& range, const InnerRange1D& inner_range,
-                       Idx nghost, Idx side_length,
+void read_border_array(const Range& range, const InnerRange2D& inner_range,
+                       Idx side_length, Idx nghost,
                        const view& rho, const view& umat, const view& vmat, const view& pmat,
                        const view& cmat, const view& gmat, const view& Emat,
                        view& value_array)
-{
+KERNEL_TRY {
+    CHECK_VIEW_LABELS(rho, umat, vmat, pmat, cmat, gmat, Emat);
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx idx = inner_range.scale_index(lin_i);
@@ -60,16 +63,17 @@ void read_border_array(const Range& range, const InnerRange1D& inner_range,
         value_array[i_arr+5] = gmat[idx];
         value_array[i_arr+6] = Emat[idx];
     });
-}
+} KERNEL_CATCH
 
 
 extern "C"
-void write_border_array(const Range& range, const InnerRange1D& inner_range,
-                        Idx nghost, Idx side_length,
+void write_border_array(const Range& range, const InnerRange2D& inner_range,
+                        Idx side_length, Idx nghost,
                         view& rho, view& umat, view& vmat, view& pmat,
                         view& cmat, view& gmat, view& Emat,
                         const view& value_array)
-{
+KERNEL_TRY {
+    CHECK_VIEW_LABELS(rho, umat, vmat, pmat, cmat, gmat, Emat);
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx idx = inner_range.scale_index(lin_i);
@@ -88,4 +92,4 @@ void write_border_array(const Range& range, const InnerRange1D& inner_range,
         gmat[idx] = value_array[i_arr+5];
         Emat[idx] = value_array[i_arr+6];
     });
-}
+} KERNEL_CATCH

@@ -3,13 +3,14 @@
 
 #include "kernels.h"
 #include "parallel_kernels.h"
+#include "utils.h"
 
 
 extern "C"
 void cell_update(const Range& range, const InnerRange2D& inner_range, Idx s, flt_t dx, flt_t dt,
-                const view& ustar, const view& pstar, const view& Emat,
-                view& rho, view& u)
-{
+                const view& ustar, const view& pstar, view& rho, view& u, view& Emat)
+KERNEL_TRY {
+    CHECK_VIEW_LABELS(ustar, pstar, Emat, rho);
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx i = inner_range.scale_index(lin_i);
@@ -18,7 +19,7 @@ void cell_update(const Range& range, const InnerRange2D& inner_range, Idx s, flt
         u[i]    += dt / dm * (pstar[i]            - pstar[i+s]             );
         Emat[i] += dt / dm * (pstar[i] * ustar[i] - pstar[i+s] * ustar[i+s]);
     });
-}
+} KERNEL_CATCH
 
 
 extern "C"
@@ -26,7 +27,8 @@ void euler_projection(const Range& range, const InnerRange2D& inner_range, Idx s
                       const view& ustar, view& rho, view& umat, view& vmat, view& Emat,
                       const view& advection_rho, const view& advection_urho,
                       const view& advection_vrho, const view& advection_Erho)
-{
+KERNEL_TRY {
+    CHECK_VIEW_LABELS(ustar, rho, umat, vmat, Emat);
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx i = inner_range.scale_index(lin_i);
@@ -43,14 +45,15 @@ void euler_projection(const Range& range, const InnerRange2D& inner_range, Idx s
         vmat[i] = tmp_vrho / tmp_rho;
         Emat[i] = tmp_Erho / tmp_rho;
     });
-}
+} KERNEL_CATCH
 
 
 extern "C"
 void advection_first_order(const Range& range, const InnerRange2D& inner_range, Idx s, flt_t dt,
                            const view& ustar, const view& rho, const view& umat, const view& vmat, const view& Emat,
                            view& advection_rho, view& advection_urho, view& advection_vrho, view& advection_Erho)
-{
+KERNEL_TRY {
+    CHECK_VIEW_LABELS(ustar, rho, umat, vmat, Emat);
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx i = inner_range.scale_index(lin_i);
@@ -64,7 +67,7 @@ void advection_first_order(const Range& range, const InnerRange2D& inner_range, 
         advection_vrho[is] = disp * (rho[i] * vmat[i]);
         advection_Erho[is] = disp * (rho[i] * Emat[i]);
     });
-}
+} KERNEL_CATCH
 
 
 KOKKOS_INLINE_FUNCTION flt_t slope_minmod(flt_t u_im, flt_t u_i, flt_t u_ip, flt_t r_m, flt_t r_p)
@@ -80,7 +83,8 @@ extern "C"
 void advection_second_order(const Range& range, const InnerRange2D& inner_range, Idx s, flt_t dx, flt_t dt,
                             const view& ustar, const view& rho, const view& umat, const view& vmat, const view& Emat,
                             view& advection_rho, view& advection_urho, view& advection_vrho, view& advection_Erho)
-{
+KERNEL_TRY {
+    CHECK_VIEW_LABELS(ustar, rho, umat, vmat, Emat);
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx i = inner_range.scale_index(lin_i);
@@ -113,4 +117,4 @@ void advection_second_order(const Range& range, const InnerRange2D& inner_range,
         advection_vrho[is] = disp * (rho[i] * vmat[i] - slope_vr * length_factor);
         advection_Erho[is] = disp * (rho[i] * Emat[i] - slope_Er * length_factor);
     });
-}
+} KERNEL_CATCH

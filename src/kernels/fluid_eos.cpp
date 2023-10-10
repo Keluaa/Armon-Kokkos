@@ -3,13 +3,15 @@
 
 #include "kernels.h"
 #include "parallel_kernels.h"
+#include "utils.h"
 
 
 extern "C"
 void perfect_gas_EOS(const Range& range, const InnerRange2D& inner_range, flt_t gamma,
-                     const view& rho, const view& umat, const view& vmat, const view& Emat,
-                     view& cmat, view& pmat, view& gmat)
-{
+                     const view& rho, const view& Emat, const view& umat, const view& vmat,
+                     view& pmat, view& cmat, view& gmat)
+KERNEL_TRY {
+    CHECK_VIEW_LABELS(rho, umat, vmat, Emat, cmat, pmat, gmat);
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx i = inner_range.scale_index(lin_i);
@@ -18,16 +20,18 @@ void perfect_gas_EOS(const Range& range, const InnerRange2D& inner_range, flt_t 
         cmat[i] = Kokkos::sqrt(gamma * pmat[i] / rho[i]);
         gmat[i] = (1 + gamma) / 2;
     });
-}
+} KERNEL_CATCH
 
 
 extern "C"
 void bizarrium_EOS(const Range& range, const InnerRange2D& inner_range,
                    const view& rho, const view& umat, const view& vmat, const view& Emat,
-                   view& cmat, view& pmat, view& gmat)
-{
+                   view& pmat, view& cmat, view& gmat)
+KERNEL_TRY {
     const flt_t rho0 = 1e4, K0 = 1e11, Cv0 = 1e3, T0 = 300, eps0 = 0;
     const flt_t G0 = 1.5, s = 1.5, q = -42080895./14941154., r = 727668333./149411540.;
+
+    CHECK_VIEW_LABELS(rho, umat, vmat, Emat, cmat, pmat, gmat);
 
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
@@ -55,4 +59,4 @@ void bizarrium_EOS(const Range& range, const InnerRange2D& inner_range,
         gmat[i] = flt_t(0.5) / (Kokkos::pow(rho[i],flt_t(3)) * Kokkos::pow(cmat[i],flt_t(2)))
                 * (pk0second + Kokkos::pow(G0 * rho0,flt_t(2)) * (pmat[i]-pk0));
     });
-}
+} KERNEL_CATCH

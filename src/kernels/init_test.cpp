@@ -6,6 +6,7 @@
 #include "kernels.h"
 #include "parallel_kernels.h"
 #include "test_cases.h"
+#include "utils.h"
 
 
 void TestSod::init_params(TestParams& test_params) const
@@ -56,6 +57,7 @@ void init_test(const Range& range, const InnerRange1D& inner_range,
                mask_view& domain_mask, view& pmat, view& cmat, view& ustar, view& pstar,
                TestParams test_params, TestCase test, bool debug_indexes)
 {
+    CHECK_VIEW_LABELS(x, y, rho, Emat, umat, vmat, domain_mask, pmat, cmat, ustar, pstar);
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx i = inner_range.scale_index(lin_i);
@@ -103,13 +105,12 @@ void init_test(const Range& range, const InnerRange1D& inner_range,
 
 extern "C"
 void init_test(const Range& range, const InnerRange1D& inner_range,
-               Idx row_length, Idx nb_ghosts,
-               Idx nx, Idx ny, Idx g_nx, Idx g_ny, Idx pos_x, Idx pos_y,
-               flt_t sx, flt_t sy, flt_t ox, flt_t oy,
+               Idx row_length, Idx nb_ghosts, Idx nx, Idx ny, flt_t sx,
+               flt_t sy, flt_t ox, flt_t oy, Idx pos_x, Idx pos_y, Idx g_nx, Idx g_ny,
                view& x, view& y, view& rho, view& Emat, view& umat, view& vmat,
                mask_view& domain_mask, view& pmat, view& cmat, view& ustar, view& pstar,
                Test test, bool debug_indexes, flt_t test_option)
-{
+KERNEL_TRY {
     std::variant<TestSod, TestSodY, TestSodCirc, TestBizarrium, TestSedov> test_case;
     switch (test) {
         case Test::Sod:       test_case = TestSod{};              break;
@@ -138,4 +139,4 @@ void init_test(const Range& range, const InnerRange1D& inner_range,
             test_params, test, debug_indexes
         );
     }, test_case);
-}
+} KERNEL_CATCH
