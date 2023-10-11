@@ -7,8 +7,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -funroll-loops")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${CMAKE_CXX_FLAGS_RELEASE}")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -funroll-loops")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O3 -funroll-loops")
 
 # Kokkos Modules
 set(Kokkos_ENABLE_HWLOC OFF CACHE BOOL "Kokkos_ENABLE_HWLOC" FORCE)
@@ -61,6 +61,8 @@ endif()
 option(USE_SINGLE_PRECISION "Use float instead of double" OFF)
 option(USE_NVTX "Enable NVTX tracing" OFF)
 option(USE_SIMD_KERNELS "Use team vector loops instead of normal loops" OFF)
+option(CHECK_VIEW_ORDER "Check if Kokkos::View parameters in kernels are in the correct order" OFF)
+option(TRY_ALL_CALLS "Surround all exported kernel functions with a try-catch block" OFF)
 
 if(USE_SINGLE_PRECISION)
     set(PRECISION 1)
@@ -81,10 +83,15 @@ else()
 endif()
 
 
+include(detect_simd_size.cmake)
+
+
 if (NOT DEFINED ARMON_KOKKOS_ROOT)
     set(ARMON_KOKKOS_ROOT "${PROJECT_SOURCE_DIR}/modules/kokkos")
 endif()
 
+# Important: required to build shared libraries using Kokkos
+set(BUILD_SHARED_LIBS ON)
 
 # Project Modules
 add_subdirectory(${ARMON_KOKKOS_ROOT} lib)

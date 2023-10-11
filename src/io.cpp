@@ -1,7 +1,7 @@
 
 #include "io.h"
 
-#include "indexing.h"
+#include "ranges.h"
 
 #include <fstream>
 #include <iomanip>
@@ -74,37 +74,41 @@ void load_data(const Params& p, HostData& d, std::istream& file)
 }
 
 
-bool is_approx(flt_t a, flt_t b, flt_t tol)
-{
-    constexpr flt_t rtol = 4 * std::numeric_limits<flt_t>::epsilon();
-    return std::abs(a - b) <= std::max(tol, rtol * std::max(std::abs(a), std::abs(b)));
-}
-
-
 int compare_with_reference(const Params& params, const HostData& ref_data, const HostData& data)
 {
     auto ref_vars = ref_data.main_vars_array();
     auto vars = data.main_vars_array();
 
+    int i_deb =         0 + (params.write_ghosts ? -params.nb_ghosts : 0);
+    int i_fin = params.nx + (params.write_ghosts ? +params.nb_ghosts : 0);
+    int j_deb =         0 + (params.write_ghosts ? -params.nb_ghosts : 0);
+    int j_fin = params.ny + (params.write_ghosts ? +params.nb_ghosts : 0);
+
     int total_differences_count = 0;
-    for (int j = 0; j < params.ny; j++) {
-        int row_deb = index_1D(params, 0, j);
-        int row_fin = index_1D(params, params.nx, j);
+    for (int j = j_deb; j < j_fin; j++) {
+        int row_deb = index_1D(params, i_deb, j);
+        int row_fin = index_1D(params, i_fin, j);
 
         auto ref_it = ref_vars.cbegin(), it = vars.cbegin();
         for (int field_i = 0; field_i < ref_vars.size(); field_i++, ref_it++, it++) {
             int row_diff_count = 0, diff_start = row_fin, diff_end = row_deb;
             flt_t max_diff = 0;
+            long max_ulp = 0;
             for (int idx = row_deb; idx < row_fin; idx++) {
                 flt_t ref_val = (**ref_it)(idx);
                 flt_t val = (**it)(idx);
-                bool is_eq = is_approx(ref_val, val);
+                bool is_eq = is_approx(ref_val, val, params.comparison_tolerance);
                 row_diff_count += !is_eq;
-                max_diff = std::max(max_diff, std::abs(ref_val - val));
 
                 if (!is_eq) {
                     diff_start = std::min(idx, diff_start);
                     diff_end = std::max(idx, diff_end);
+
+                    flt_t diff = std::abs(ref_val - val);
+                    if (diff > max_diff) {
+                        max_diff = diff;
+                        max_ulp = max_diff / std::abs(ref_val * std::numeric_limits<flt_t>::epsilon());
+                    }
                 }
             }
 
@@ -118,7 +122,7 @@ int compare_with_reference(const Params& params, const HostData& ref_data, const
                           << " differences in '" << std::setw(4) << (**ref_it).label()
                           << "' from " << std::setw(3) << (diff_start - row_deb + 1)
                           << " to " << std::setw(3) << (diff_end - row_deb + 1)
-                          << ", max diff: " << max_diff << "\n";
+                          << ", max diff: " << max_diff << " (" << max_ulp << " ulp)\n";
                 std::cout.precision(tmp_precision);
             }
         }
@@ -137,6 +141,31 @@ bool compare_with_file(const Params& p, const HostData& d, const std::string& re
     load_data(p, ref_data, ref_file);
 
     bool is_different = compare_with_reference(p, ref_data, d) > 0;
+
+    return is_different;
+}
+
+
+bool compare_time_step(const Params& p, const std::string& ref_file_name)
+{
+    std::ifstream ref_file(ref_file_name);
+    ref_file.exceptions(std::ios::failbit | std::istream::badbit);
+
+    flt_t ref_dt;
+    ref_file >> ref_dt;
+
+    bool is_different = !is_approx(ref_dt, p.current_cycle_dt, p.comparison_tolerance);
+    if (is_different) {
+        std::streamsize tmp_precision = std::cout.precision();
+        std::cout.precision(std::numeric_limits<flt_t>::digits10);
+
+        flt_t diff = ref_dt - p.current_cycle_dt;
+        long ulp = diff / std::numeric_limits<flt_t>::epsilon();
+
+        std::cout << "Time step difference: ref Δt = " << ref_dt << ", Δt = " << p.current_cycle_dt
+                  << ", diff = " << diff << " (" << ulp << " ulp)\n";
+        std::cout.precision(tmp_precision);
+    }
 
     return is_different;
 }

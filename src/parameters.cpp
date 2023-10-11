@@ -1,138 +1,33 @@
 
 #include "parameters.h"
 #include "utils.h"
+#include "test_cases.h"
 
 #include <cstdio>
 
 #include "Kokkos_Core.hpp"
 
 
-std::array<flt_t, 2> default_domain_size(Test test)
+int Params::min_ghosts() const
 {
-    switch (test) {
-    case Test::Sod:
-    case Test::Sod_y:
-    case Test::Sod_circ:
-    case Test::Bizarrium:
-        return { 1, 1 };
-    default:
-        printf("Wrong test case: %d\n", (int) test);
-        return {};
-    }
-}
-
-
-std::array<flt_t, 2> default_domain_origin(Test test)
-{
-    switch (test) {
-    case Test::Sod:
-    case Test::Sod_y:
-    case Test::Sod_circ:
-    case Test::Bizarrium:
-        return { 0, 0 };
-    default:
-        printf("Wrong test case: %d\n", (int) test);
-        return {};
-    }
-}
-
-
-flt_t default_CFL(Test test)
-{
-    switch (test) {
-    case Test::Sod:
-    case Test::Sod_y:
-    case Test::Sod_circ:
-        return 0.95;
-    case Test::Bizarrium:
-        return 0.6;
-    default:
-        printf("Wrong test case: %d\n", (int) test);
-        return 0;
-    }
-}
-
-
-flt_t default_max_time(Test test)
-{
-    switch (test) {
-    case Test::Sod:
-    case Test::Sod_y:
-    case Test::Sod_circ:
-        return 0.20;
-    case Test::Bizarrium:
-        return 80e-6;
-    default:
-        printf("Wrong test case: %d\n", (int) test);
-        return 0;
-    }
-}
-
-
-TestInitParams get_test_init_params(Test test)
-{
-    switch (test) {
-    case Test::Sod:
-    case Test::Sod_y:
-    case Test::Sod_circ:
-        return {
-            7./5., // gamma
-            1.,    // high_ρ
-            0.125, // low_ρ
-            1.0,   // high_p
-            0.1,   // low_p
-            0.,    // high_u
-            0.,    // low_u
-            0.,    // high_v
-            0.,    // low_v
-        };
-    case Test::Bizarrium:
-        return {
-            2,                 // gamma
-            1.42857142857e+4,  // high_ρ
-            10000.,            // low_ρ
-            6.40939744478e+10, // high_p
-            312.5e6,           // low_p
-            0.,                // high_u
-            250.,              // low_u
-            0.,                // high_v
-            0.,                // low_v
-        };
-    default:
-        printf("Wrong test case: %d\n", (int) test);
-        return {};
-    }
-}
-
-
-std::array<flt_t, 2> boundaryCondition(Test test, Side side)
-{
-    switch (test) {
-    case Test::Sod:
-    case Test::Bizarrium:
-    default:
-        if (side == Side::Left || side == Side::Right)
-            return { -1, 1 };
-        else
-            return { 1, 1 };
-
-    case Test::Sod_y:
-        if (side == Side::Left || side == Side::Right)
-            return { 1, 1 };
-        else
-            return { 1, -1 };
-
-    case Test::Sod_circ:
-        if (side == Side::Left || side == Side::Right)
-            return { -1, 1 };
-        else
-            return { 1, -1 };
-    }
+    int min_ghosts = 1;
+    min_ghosts += scheme == Scheme::GAD;
+    min_ghosts += projection == Projection::Euler_2nd;
+    min_ghosts += (projection == Projection::Euler_2nd) && (scheme == Scheme::GAD);
+    return min_ghosts;
 }
 
 
 void Params::init()
 {
+    switch (test) {
+    case Test::Sod:       test_case = new TestSod();       break;
+    case Test::Sod_y:     test_case = new TestSodY();      break;
+    case Test::Sod_circ:  test_case = new TestSodCirc();   break;
+    case Test::Bizarrium: test_case = new TestBizarrium(); break;
+    case Test::Sedov:     test_case = new TestSedov();     break;
+    }
+
     set_default_values();
     init_indexing();
     update_axis(current_axis);
@@ -142,15 +37,15 @@ void Params::init()
 void Params::set_default_values()
 {
     if (cfl == 0)
-        cfl = default_CFL(test);
+        cfl = test_case->default_CFL();
     if (max_time == 0)
-        max_time = default_max_time(test);
+        max_time = test_case->default_max_time();
     if (domain_size[0] <= 0 || domain_size[1] <= 0)
-        domain_size = default_domain_size(test);
+        domain_size = test_case->default_domain_size();
     if (is_ieee754_nan(domain_origin[0]) || is_ieee754_nan(domain_origin[1]))
-        domain_origin = default_domain_origin(test);
-    if (stencil_width == 0)
-        stencil_width = nb_ghosts;
+        domain_origin = test_case->default_domain_origin();
+    if (stencil_width == -1)
+        stencil_width = min_ghosts();
 }
 
 
@@ -166,21 +61,19 @@ void Params::init_indexing()
     ifin = row_length * (ny - 1 + nb_ghosts) + nb_ghosts + nx - 1;
     index_start = ideb;
 
-    // Used only for indexing with a 2 dimensional index
+    // Used only for indexing with a 2-dimensional index
     idx_row = row_length;
     idx_col = 1;
-
-    if (single_comm_per_axis_pass) {
-        extra_ring_width = 1;
-        extra_ring_width += projection == Projection::Euler_2nd;
-    } else {
-        extra_ring_width = 0;
-    }
 }
 
 
 bool Params::check() const
 {
+    if (projection == Projection::None) {
+        std::cerr << "ERROR: Lagrangian mode is not supported\n";
+        return false;
+    }
+
     if (nx <= 0 || ny <= 0) {
         std::cerr << "ERROR: One of the dimensions of the domain is 0 or negative (nx=" << nx << ", ny=" << ny << ")\n";
         return false;
@@ -196,10 +89,8 @@ bool Params::check() const
         return false;
     }
 
-    int min_ghosts = 1;
-    min_ghosts += scheme == Scheme::GAD;
-    min_ghosts += single_comm_per_axis_pass;
-    min_ghosts += projection == Projection::Euler_2nd;
+    int min_ghosts = this->min_ghosts();
+
     if (nb_ghosts < min_ghosts) {
         std::cerr << "WARNING: There is not enough ghost cells for the given parameters. Expected at least "
                   << min_ghosts << ", got " << nb_ghosts << "\n";
@@ -227,7 +118,11 @@ void Params::print() const
 #else
     printf(" - multithreading: 0\n");
 #endif
-    printf(" - use simd:   %d", USE_SIMD);
+#ifdef KOKKOS_ENABLE_PRAGMA_IVDEP
+    printf(" - use simd:   1");
+#else
+    printf(" - use simd:   0");
+#endif
 #ifdef __FAST_MATH__
     printf(", with fast math\n");
 #else
@@ -248,6 +143,7 @@ void Params::print() const
     case Test::Sod_y:     printf("Sod Y\n");           break;
     case Test::Sod_circ:  printf("Cylindrical Sod\n"); break;
     case Test::Bizarrium: printf("Bizarrium\n");       break;
+    case Test::Sedov:     printf("Sedov\n");           break;
     }
     printf(" - riemann:    %s\n", "acoustic");
     printf(" - scheme:     %s, ", (scheme == Scheme::Godunov) ? "Godunov" : "GAD");
@@ -278,17 +174,15 @@ void Params::print() const
     case AxisSplitting::X_only:        printf("X only\n");                   break;
     case AxisSplitting::Y_only:        printf("Y only\n");                   break;
     }
-    printf(" - single comm:%d\n", single_comm_per_axis_pass);
     printf(" - max time:   %g\n", max_time);
     printf(" - max cycles: %d\n", max_cycles);
     if (write_output) {
         printf(" - output:     '%s'\n", output_file);
-    }
-    else {
+    } else {
         printf(" - no output\n");
     }
     if (compare) {
-        printf(" - comparison: true\n");
+        printf(" - comparison: true, tol: %g\n", comparison_tolerance);
     }
 }
 
@@ -310,8 +204,7 @@ void Params::update_axis(Axis axis)
     }
 }
 
-
-std::vector<std::pair<Axis, flt_t>> Params::split_axes(int cycle) const
+std::vector<std::pair<Axis, flt_t>> Params::split_axes() const
 {
     using Axis = Axis;
     Axis axis_1, axis_2;

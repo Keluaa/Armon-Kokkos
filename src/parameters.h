@@ -9,55 +9,9 @@
 
 #include <Kokkos_Core.hpp>
 
-
-#ifdef KOKKOS_ENABLE_PRAGMA_IVDEP
-#define USE_SIMD 1
-#else
-#define USE_SIMD 0
-#endif
-
-
-#if USE_SINGLE_PRECISION
-typedef float flt_t;
-#else
-typedef double flt_t;
-#endif
-
-enum class Side {
-    Left,
-    Right,
-    Top,
-    Bottom
-};
-
-enum class Test {
-    Sod, Sod_y, Sod_circ, Bizarrium
-};
-
-std::array<flt_t, 2> default_domain_size(Test test);
-std::array<flt_t, 2> default_domain_origin(Test test);
-flt_t default_CFL(Test test);
-flt_t default_max_time(Test test);
-
-struct TestInitParams {
-    flt_t gamma, high_rho, low_rho, high_p, low_p, high_u, low_u, high_v, low_v;
-};
-
-TestInitParams get_test_init_params(Test test);
-
-KOKKOS_INLINE_FUNCTION bool test_region_high(Test test, flt_t x, flt_t y)
-{
-    switch (test) {
-    case Test::Sod:
-    case Test::Bizarrium: return x <= flt_t(0.5);
-    case Test::Sod_y:     return y <= flt_t(0.5);
-    case Test::Sod_circ:  return (x - flt_t(0.5)) * (x - flt_t(0.5)) +
-                                 (y - flt_t(0.5)) * (y - flt_t(0.5)) <= flt_t(0.125);
-    default: return false;
-    }
-}
-
-std::array<flt_t, 2> boundaryCondition(Test test, Side side);
+#include "kernels/common.h"
+#include "kernels/limiters.h"
+#include "kernels/test_cases.h"
 
 
 enum class Scheme {
@@ -72,16 +26,8 @@ enum class Projection {
     None, Euler, Euler_2nd
 };
 
-enum class Limiter {
-    None, Minmod, Superbee
-};
-
 enum class AxisSplitting {
     Sequential, SequentialSym, Strang, X_only, Y_only
-};
-
-enum class Axis {
-    X, Y
 };
 
 
@@ -95,6 +41,8 @@ struct Params
     Axis current_axis     = Axis::X;
     AxisSplitting axis_splitting = AxisSplitting::Sequential;
 
+    TestCase* test_case;
+
     // Domain parameters
     int nb_ghosts = 3;
     int nx = 10;
@@ -102,9 +50,9 @@ struct Params
     flt_t dx = 0;
     flt_t cfl = 0;
     flt_t Dt = 0;
-    int stencil_width = 0;
+    int stencil_width = -1;  // Use min_ghost by default
     bool cst_dt = false;
-    bool single_comm_per_axis_pass = false;
+    bool dt_on_even_cycles = false;
     std::array<flt_t, 2> domain_size = { 0, 0 };
     std::array<flt_t, 2> domain_origin = { NAN, NAN };  // NAN -> use the default value for the current test
 
@@ -118,12 +66,18 @@ struct Params
     int ideb = 0;
     int ifin = 0;
     int index_start = 0;
-    // Used only for indexing with a 2 dimensional index
+    // Used only for indexing with a 2-dimensional index
     int idx_row = 0;
     int idx_col = 0;
-    int extra_ring_width = 0;
 
     int s = 0; // Stride
+
+    // Solver state
+    int cycle = 0;
+    flt_t cycle_dt = 0.;  // Scaled time step, with the axis splitting factor
+    flt_t current_cycle_dt = 0.;  // Unscaled time step
+    flt_t next_cycle_dt = 0.;
+    flt_t time = 0.;
 
     // Computation bounds
     int max_cycles = 100;
@@ -140,7 +94,9 @@ struct Params
 
     // Comparison
     bool compare = false;
+    flt_t comparison_tolerance = 1e-13;
 
+    int min_ghosts() const;
     void init();
     void set_default_values();
     void init_indexing();
@@ -148,7 +104,7 @@ struct Params
     void print() const;
 
     void update_axis(Axis axis);
-    [[nodiscard]] std::vector<std::pair<Axis, flt_t>> split_axes(int cycle) const;
+    [[nodiscard]] std::vector<std::pair<Axis, flt_t>> split_axes() const;
 };
 
 #endif //ARMON_KOKKOS_PARAMETERS_H

@@ -14,22 +14,25 @@ set(EXE_NAME_2D "${LIB_NAME_2D}.exe")
 
 # 2D library & executable
 
+add_subdirectory(kernels)
+
 add_library(${LIB_NAME_2D}
-        armon_2D.cpp
+        armon_2D.cpp armon_2D.h
         parameters.cpp parameters.h
-        indexing.cpp indexing.h
+        ranges.cpp ranges.h
+        kernels/indexing.h kernels/common.h
         data.h
-        armon_2D.h
-        kernel_info.cpp kernel_info.h
         io.cpp io.h
         utils.h)
-target_link_libraries(${LIB_NAME_2D} PRIVATE Kokkos::kokkos)
+target_link_libraries(${LIB_NAME_2D} PRIVATE Kokkos::kokkos armon_kernels)
 target_compile_options(${LIB_NAME_2D} PRIVATE ${OPTIONS})
+target_include_directories(${LIB_NAME_2D} PRIVATE kernels)
 
 target_compile_definitions(${LIB_NAME_2D} PUBLIC
         USE_SINGLE_PRECISION=${PRECISION}
         USE_NVTX=${NVTX}
-        USE_SIMD_KERNELS=${SIMD_KERNELS})
+        USE_SIMD_KERNELS=${SIMD_KERNELS}
+        PREFERRED_SIMD_SIZE=${PREFERRED_SIMD_SIZE})
 
 add_executable(${EXE_NAME_2D}
         main_2D.cpp)
