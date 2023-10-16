@@ -114,4 +114,16 @@ __attribute__((noreturn)) void raise_exception(const char* kernel_name, const st
 #endif //TRY_ALL_CALLS
 
 
+/**
+ * Unpack 'expr' into 'a' and 'b', but as constant values, not as structured bindings.
+ *
+ * Structured bindings are incompatible with lambda captures (until C++20) and OpenMP, and avoiding them is verbose,
+ * hence this macro.
+ */
+#define CONST_UNPACK(a, b, expr)        \
+    const auto [_ ## a, _ ## b] = expr; \
+    const auto a = _ ## a;              \
+    const auto b = _ ## b
+
+
 #endif //ARMON_KOKKOS_UTILS_H

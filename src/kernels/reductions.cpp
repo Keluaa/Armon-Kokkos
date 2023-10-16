@@ -13,8 +13,7 @@ KERNEL_TRY {
 
     CHECK_VIEW_LABELS(umat, vmat, cmat, domain_mask);
 
-    parallel_reduce_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i, flt_t& dt_loop) {
+    parallel_reduce_kernel(range, KOKKOS_LAMBDA(const UIdx lin_i, flt_t& dt_loop) {
         Idx i = inner_range.scale_index(lin_i);
         flt_t max_cx = Kokkos::max(Kokkos::abs(umat[i] + cmat[i]), Kokkos::abs(umat[i] - cmat[i])) * domain_mask[i];
         flt_t max_cy = Kokkos::max(Kokkos::abs(vmat[i] + cmat[i]), Kokkos::abs(vmat[i] - cmat[i])) * domain_mask[i];
@@ -38,8 +37,7 @@ KERNEL_TRY {
 
     flt_t ds = dx * dx;
 
-    parallel_reduce_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i, Reducer_val& mass_and_energy) {
+    parallel_reduce_kernel(range, KOKKOS_LAMBDA(const UIdx lin_i, Reducer_val& mass_and_energy) {
         Idx i = inner_range.scale_index(lin_i);
         flt_t cell_mass = rho[i] * domain_mask[i] * ds;
         flt_t cell_energy = cell_mass * Emat[i];

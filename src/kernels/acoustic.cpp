@@ -25,9 +25,9 @@ void acoustic(const Range& range, const InnerRange2D& inner_range, Idx s,
               const view& rho, const view& u, const view& pmat, const view& cmat)
 KERNEL_TRY {
     CHECK_VIEW_LABELS(ustar, pstar, rho, pmat, cmat);
-    parallel_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i) {
-        Idx i = inner_range.scale_index(lin_i);
+    CONST_UNPACK(iter_range, iter_inner_range, iter(range, inner_range));
+    parallel_kernel(iter_range, KOKKOS_LAMBDA(ITER_IDX_DEF) {
+        Idx i = iter_inner_range.scale_index(ITER_IDX);
         auto [ustar_i, pstar_i] = acoustic_Godunov(
             rho[i], rho[i-s], cmat[i], cmat[i-s],
               u[i],   u[i-s], pmat[i], pmat[i-s]);
@@ -43,9 +43,9 @@ void acoustic_GAD(const Range& range, const InnerRange2D& inner_range, Idx s, fl
                   const view& rho, const view& u, const view& pmat, const view& cmat)
 {
     CHECK_VIEW_LABELS(ustar, pstar, rho, pmat, cmat);
-    parallel_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i) {
-        Idx i = inner_range.scale_index(lin_i);
+    CONST_UNPACK(iter_range, iter_inner_range, iter(range, inner_range));
+    parallel_kernel(iter_range, KOKKOS_LAMBDA(ITER_IDX_DEF) {
+        Idx i = iter_inner_range.scale_index(ITER_IDX);
 
         // First order acoustic solver on the left cell
         auto [ustar_im, pstar_im] = acoustic_Godunov(

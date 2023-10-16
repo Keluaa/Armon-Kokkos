@@ -23,7 +23,6 @@ using flt_t = double;
 
 using view = Kokkos::View<flt_t*>;
 using host_view = view::HostMirror;
-//using mask_view = Kokkos::View<bool*>;
 using mask_view = Kokkos::View<flt_t*>;
 using host_mask_view = mask_view::HostMirror;
 

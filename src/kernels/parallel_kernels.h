@@ -59,8 +59,15 @@ void parallel_kernel(const Range& range, const Functor& functor)
         });
     });
 #else
-    Kokkos::parallel_for(iter(range), functor);
+    Kokkos::parallel_for(iter_lin(range), functor);
 #endif  // USE_SIMD_KERNELS
+}
+
+
+template<typename... PolicyParams, typename Functor>
+void parallel_kernel(const Kokkos::MDRangePolicy<PolicyParams...>& range, const Functor& functor)
+{
+    Kokkos::parallel_for(range, functor);
 }
 
 
@@ -104,8 +111,15 @@ void parallel_reduce_kernel(const Range& range, const Functor& functor, const Re
         }
     }, global_reducer);
 #else
-    Kokkos::parallel_reduce(iter(range), functor, global_reducer);
+    Kokkos::parallel_reduce(iter_lin(range), functor, global_reducer);
 #endif  // USE_SIMD_KERNELS
+}
+
+
+template<typename... PolicyParams, typename Functor, typename Reducer>
+void parallel_reduce_kernel(const Kokkos::MDRangePolicy<PolicyParams...>& range, const Functor& functor, const Reducer& global_reducer)
+{
+    Kokkos::parallel_reduce(range, functor, global_reducer);
 }
 
 #endif // ARMON_KOKKOS_PARALLEL_KERNELS

@@ -13,8 +13,7 @@ void boundary_conditions(const Range& range, const InnerRange1D& inner_range,
                          view& rho, view& umat, view& vmat, view& pmat, view& cmat, view& gmat, view& Emat)
 KERNEL_TRY {
     CHECK_VIEW_LABELS(rho, umat, vmat, pmat, cmat, gmat, Emat);
-    parallel_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i) {
+    parallel_kernel(range, KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx i = inner_range.scale_index(lin_i);
         Idx ip = i + disp;
 
@@ -45,8 +44,7 @@ void read_border_array(const Range& range, const InnerRange2D& inner_range,
                        view& value_array)
 KERNEL_TRY {
     CHECK_VIEW_LABELS(rho, umat, vmat, pmat, cmat, gmat, Emat);
-    parallel_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i) {
+    parallel_kernel(range, KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx idx = inner_range.scale_index(lin_i);
         Idx itr = static_cast<Idx>(lin_i);
 
@@ -74,8 +72,7 @@ void write_border_array(const Range& range, const InnerRange2D& inner_range,
                         const view& value_array)
 KERNEL_TRY {
     CHECK_VIEW_LABELS(rho, umat, vmat, pmat, cmat, gmat, Emat);
-    parallel_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i) {
+    parallel_kernel(range, KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx idx = inner_range.scale_index(lin_i);
         Idx itr = static_cast<Idx>(lin_i);
 

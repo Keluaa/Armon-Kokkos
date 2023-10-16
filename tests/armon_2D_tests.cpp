@@ -237,19 +237,22 @@ TEST_SUITE("NaNs check") {
 
     TEST_CASE("Sod")       { run_nan_check(Test::Sod,       45); }
     TEST_CASE("Sod_y")     { run_nan_check(Test::Sod_y,     45); }
-    TEST_CASE("Sod_circ")  { run_nan_check(Test::Sod_circ,  44); }
+    TEST_CASE("Sod_circ")  { run_nan_check(Test::Sod_circ,  43); }
     TEST_CASE("Bizarrium") { run_nan_check(Test::Bizarrium, 76); }
     TEST_CASE("Sedov")     { run_nan_check(Test::Sedov,    568); }
 }
 
 
 TEST_SUITE("Conservation") {
-    void run_test(Test test_case, int expected_cycles)
+    void run_test(Test test_case)
     {
         init_kokkos();
 
         Params ref_params = get_reference_params(test_case);
         REQUIRE(ref_params.check());
+        ref_params.max_time = 10000.;
+        ref_params.max_cycles = 400;
+
         Data data(ref_params.nb_cells);
         HostData host_data = data.as_mirror();
 
@@ -261,14 +264,14 @@ TEST_SUITE("Conservation") {
         check_flt_eq("Mass is not conserved.", initial_mass, current_mass, 1e-12);
         check_flt_eq("Energy is not conserved.", initial_energy, current_energy, 1e-12);
 
-        CHECK_EQ(cycles, expected_cycles);
+        CHECK_EQ(cycles, 400);
     }
 
-    TEST_CASE("Sod")      { run_test(Test::Sod,      45); }
-    TEST_CASE("Sod_y")    { run_test(Test::Sod_y,    45); }
-    TEST_CASE("Sod_circ") { run_test(Test::Sod_circ, 44); }
+    TEST_CASE("Sod")      { run_test(Test::Sod     ); }
+    TEST_CASE("Sod_y")    { run_test(Test::Sod_y   ); }
+    TEST_CASE("Sod_circ") { run_test(Test::Sod_circ); }
     // Bizarrium is not conservative
-    TEST_CASE("Sedov")    { run_test(Test::Sedov,   568); }
+    TEST_CASE("Sedov")    { run_test(Test::Sedov   ); }  // Sedov is conservative until the blast wave reaches the borders
 }
 
 

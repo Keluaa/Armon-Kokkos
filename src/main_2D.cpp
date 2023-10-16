@@ -234,7 +234,7 @@ bool run_armon(int argc, char* argv[])
 
     if (params.verbose < 3) {
         params.print();
-        Kokkos::print_configuration(std::cout);
+        Kokkos::print_configuration(std::cout, true);
     }
 
     return armon(params);
