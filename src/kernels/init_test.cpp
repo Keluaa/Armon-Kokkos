@@ -54,12 +54,10 @@ void init_test(const Range& range, const InnerRange1D& inner_range,
                Idx nx, Idx ny, Idx g_nx, Idx g_ny, Idx pos_x, Idx pos_y,
                flt_t sx, flt_t sy, flt_t ox, flt_t oy,
                view& x, view& y, view& rho, view& Emat, view& umat, view& vmat,
-               mask_view& domain_mask, view& pmat, view& cmat, view& ustar, view& pstar,
+               mask_view& domain_mask, view& pmat, view& cmat, view& gmat, view& ustar, view& pstar,
                TestParams test_params, TestCase test, bool debug_indexes)
 {
-    CHECK_VIEW_LABELS(x, y, rho, Emat, umat, vmat, domain_mask, pmat, cmat, ustar, pstar);
-    parallel_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i) {
+    CHECK_VIEW_LABELS(x, y, rho, Emat, umat, vmat, domain_mask, pmat, cmat, gmat, ustar, pstar);
     parallel_kernel(range, KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx i = inner_range.scale_index(lin_i);
 
@@ -98,6 +96,7 @@ void init_test(const Range& range, const InnerRange1D& inner_range,
         // Set to zero to make sure no non-initialized values changes the result
         pmat[i] = 0;
         cmat[i] = 1;  // Set to 1 as a max speed of 0 will create NaNs
+        gmat[i] = 0;
         ustar[i] = 0;
         pstar[i] = 0;
     });
@@ -109,7 +108,7 @@ void init_test(const Range& range, const InnerRange1D& inner_range,
                Idx row_length, Idx nb_ghosts, Idx nx, Idx ny, flt_t sx,
                flt_t sy, flt_t ox, flt_t oy, Idx pos_x, Idx pos_y, Idx g_nx, Idx g_ny,
                view& x, view& y, view& rho, view& Emat, view& umat, view& vmat,
-               mask_view& domain_mask, view& pmat, view& cmat, view& ustar, view& pstar,
+               mask_view& domain_mask, view& pmat, view& cmat, view& gmat, view& ustar, view& pstar,
                Test test, bool debug_indexes, flt_t test_option)
 KERNEL_TRY {
     std::variant<TestSod, TestSodY, TestSodCirc, TestBizarrium, TestSedov> test_case;
@@ -136,7 +135,7 @@ KERNEL_TRY {
             nx, ny, g_nx, g_ny, pos_x, pos_y,
             sx, sy, ox, oy,
             x, y, rho, Emat, umat, vmat,
-            domain_mask, pmat, cmat, ustar, pstar,
+            domain_mask, pmat, cmat, gmat, ustar, pstar,
             test_params, test, debug_indexes
         );
     }, test_case);

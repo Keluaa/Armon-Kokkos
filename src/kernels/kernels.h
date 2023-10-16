@@ -73,7 +73,7 @@ void init_test(const Range& range, const InnerRange1D& inner_range,
                Idx row_length, Idx nb_ghosts, Idx nx, Idx ny, flt_t sx,
                flt_t sy, flt_t ox, flt_t oy, Idx pos_x, Idx pos_y, Idx g_nx, Idx g_ny,
                view& x, view& y, view& rho, view& Emat, view& umat, view& vmat, mask_view& domain_mask,
-               view& pmat, view& cmat, view& ustar, view& pstar,
+               view& pmat, view& cmat, view& gmat, view& ustar, view& pstar,
                Test test, bool debug_indexes, flt_t test_option);
 
 extern "C" DLL_EXPORT

@@ -122,7 +122,7 @@ void init_test(const Params& p, Data& d, bool debug_indexes)
               p.nx, p.ny, p.domain_size[0], p.domain_size[1], p.domain_origin[0], p.domain_origin[1],
               0, 0, p.nx, p.ny,
               d.x, d.y, d.rho, d.Emat, d.umat, d.vmat,
-              d.domain_mask, d.pmat, d.cmat, d.ustar, d.pstar,
+              d.domain_mask, d.pmat, d.cmat, d.gmat, d.ustar, d.pstar,
               p.test, debug_indexes, test_option);
 }
 
