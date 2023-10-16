@@ -48,7 +48,7 @@ struct TestSod : TestCase {
     }
 
     static KOKKOS_INLINE_FUNCTION
-    bool region_high(flt_t x, flt_t) { return x <= 0.5; }
+    bool region_high(flt_t x, flt_t) { return x <= flt_t(0.5); }
 };
 
 
@@ -59,7 +59,7 @@ struct TestSodY : TestSod {
     }
 
     static KOKKOS_INLINE_FUNCTION
-    bool region_high(flt_t, flt_t y) { return y <= 0.5; }
+    bool region_high(flt_t, flt_t y) { return y <= flt_t(0.5); }
 };
 
 
@@ -72,7 +72,7 @@ struct TestSodCirc : TestSod {
     static KOKKOS_INLINE_FUNCTION
     bool region_high(flt_t x, flt_t y)
     {
-        return (Kokkos::pow(x - flt_t(0.5), flt_t(2)) + Kokkos::pow(y - flt_t(0.5), flt_t(2))) <= flt_t(0.125);
+        return ((x - flt_t(0.5)) * (x - flt_t(0.5)) + (y - flt_t(0.5)) * (y - flt_t(0.5))) <= flt_t(0.09);
     }
 };
 
@@ -92,7 +92,7 @@ struct TestBizarrium : TestCase {
     }
 
     static KOKKOS_INLINE_FUNCTION
-    bool region_high(flt_t x, flt_t) { return x <= 0.5; }
+    bool region_high(flt_t x, flt_t) { return x <= flt_t(0.5); }
 };
 
 
