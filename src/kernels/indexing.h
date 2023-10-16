@@ -7,7 +7,6 @@
 #include "common.h"
 
 
-
 /**
  * The default index type: the first argument to kernels.
  * Usually an `unsigned long` or `unsigned int`, it can be an `long` or an `int` in some backends.
@@ -75,6 +74,20 @@ struct InnerRange2D {
 
 
 /**
+ * Same as `InnerRange2D` but in a `Kokkos::parallel_for` with a `Kokkos::MDRangePolicy`, allowing to move most of the
+ * indexing logic in the loops, at the cost of having 2 indexing variables instead of 1.
+ */
+struct MDInnerRange2D {
+    Idx main_range_step;
+
+    [[nodiscard]] KOKKOS_INLINE_FUNCTION
+    Idx scale_index(UIdx j, UIdx i) const {
+        return j * main_range_step + i;
+    }
+};
+
+
+/**
  * Represents a 2D iteration on a 2D array, using two ranges, one along the columns, another along the rows.
  */
 struct DomainRange {
@@ -106,15 +119,9 @@ struct DomainRange {
 /**
  * Iterate `range` using a simple `RangePolicy`.
  */
-KOKKOS_INLINE_FUNCTION Kokkos::RangePolicy<Index_t> iter(const Range&& range)
+inline Kokkos::RangePolicy<Index_t> iter_lin(const Range& range)
 {
     return { static_cast<UIdx>(range.start), static_cast<UIdx>(range.end) };
-}
-
-
-KOKKOS_INLINE_FUNCTION Kokkos::RangePolicy<Index_t> iter(const Range& range)
-{
-    return iter(std::forward<const Range>(range));
 }
 
 
@@ -123,17 +130,46 @@ KOKKOS_INLINE_FUNCTION Kokkos::RangePolicy<Index_t> iter(const Range& range)
  *
  * The number of threads per team is automatic.
  */
-KOKKOS_INLINE_FUNCTION Kokkos::TeamPolicy<Index_t> iter_simd(const Range&& range, int V)
+inline Kokkos::TeamPolicy<Index_t> iter_simd(const Range& range, int V)
 {
     int size = static_cast<int>(Kokkos::ceil(static_cast<double>(range.length()) / V));
     return { size, Kokkos::AUTO, V };
 }
 
 
-KOKKOS_INLINE_FUNCTION Kokkos::TeamPolicy<Index_t> iter_simd(const Range& range, int V)
+inline std::tuple<Kokkos::MDRangePolicy<Kokkos::Rank<2>, Index_t>, MDInnerRange2D> iter_md_2D(const Range& range, const InnerRange2D& inner_range)
 {
-    return iter_simd(std::forward<const Range>(range), V);
+    long first_i = inner_range.scale_index(range.start);
+    long last_i  = inner_range.scale_index(range.end - 1);
+
+    long start_x = first_i % inner_range.main_range_step;
+    long start_y = first_i / inner_range.main_range_step;
+    long end_x   = last_i  % inner_range.main_range_step + 1;
+    long end_y   = last_i  / inner_range.main_range_step + 1;
+
+    return {
+        { { start_y, start_x }, { end_y, end_x } },
+        { inner_range.main_range_step }
+    };
 }
 
 
-#endif //ARMON_KOKKOS_INDEXING_H
+inline auto iter(const Range& range, const InnerRange2D& inner_range)
+{
+#if USE_MD_ITER
+    return iter_md_2D(range, inner_range);
+#else
+    return std::make_tuple(range, inner_range);
+#endif  // USE_MD_ITER
+}
+
+
+#if USE_MD_ITER
+#define ITER_IDX_DEF const UIdx _ij, const UIdx _ix
+#define ITER_IDX _ij, _ix
+#else
+#define ITER_IDX_DEF const UIdx _lin_i
+#define ITER_IDX _lin_i
+#endif  // USE_MD_ITER
+
+#endif // ARMON_KOKKOS_INDEXING_H

@@ -11,9 +11,9 @@ void cell_update(const Range& range, const InnerRange2D& inner_range, Idx s, flt
                 const view& ustar, const view& pstar, view& rho, view& u, view& Emat)
 KERNEL_TRY {
     CHECK_VIEW_LABELS(ustar, pstar, Emat, rho);
-    parallel_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i) {
-        Idx i = inner_range.scale_index(lin_i);
+    CONST_UNPACK(iter_range, iter_inner_range, iter(range, inner_range));
+    parallel_kernel(iter_range, KOKKOS_LAMBDA(ITER_IDX_DEF) {
+        Idx i = iter_inner_range.scale_index(ITER_IDX);
         flt_t dm = rho[i] * dx;
         rho[i]   = dm / (dx + dt * (ustar[i+s] - ustar[i]));
         u[i]    += dt / dm * (pstar[i]            - pstar[i+s]             );
@@ -29,9 +29,9 @@ void euler_projection(const Range& range, const InnerRange2D& inner_range, Idx s
                       const view& advection_vrho, const view& advection_Erho)
 KERNEL_TRY {
     CHECK_VIEW_LABELS(ustar, rho, umat, vmat, Emat);
-    parallel_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i) {
-        Idx i = inner_range.scale_index(lin_i);
+    CONST_UNPACK(iter_range, iter_inner_range, iter(range, inner_range));
+    parallel_kernel(iter_range, KOKKOS_LAMBDA(ITER_IDX_DEF) {
+        Idx i = iter_inner_range.scale_index(ITER_IDX);
 
         flt_t dX = dx + dt * (ustar[i+s] - ustar[i]);
 
@@ -54,9 +54,9 @@ void advection_first_order(const Range& range, const InnerRange2D& inner_range, 
                            view& advection_rho, view& advection_urho, view& advection_vrho, view& advection_Erho)
 KERNEL_TRY {
     CHECK_VIEW_LABELS(ustar, rho, umat, vmat, Emat);
-    parallel_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i) {
-        Idx i = inner_range.scale_index(lin_i);
+    CONST_UNPACK(iter_range, iter_inner_range, iter(range, inner_range));
+    parallel_kernel(iter_range, KOKKOS_LAMBDA(ITER_IDX_DEF) {
+        Idx i = iter_inner_range.scale_index(ITER_IDX);
 
         flt_t disp = dt * ustar[i];
         Idx is = i;
@@ -85,9 +85,9 @@ void advection_second_order(const Range& range, const InnerRange2D& inner_range,
                             view& advection_rho, view& advection_urho, view& advection_vrho, view& advection_Erho)
 KERNEL_TRY {
     CHECK_VIEW_LABELS(ustar, rho, umat, vmat, Emat);
-    parallel_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i) {
-        Idx i = inner_range.scale_index(lin_i);
+    CONST_UNPACK(iter_range, iter_inner_range, iter(range, inner_range));
+    parallel_kernel(iter_range, KOKKOS_LAMBDA(ITER_IDX_DEF) {
+        Idx i = iter_inner_range.scale_index(ITER_IDX);
 
         Idx is = i;
         flt_t disp = dt * ustar[i];

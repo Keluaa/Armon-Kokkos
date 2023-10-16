@@ -12,9 +12,9 @@ void perfect_gas_EOS(const Range& range, const InnerRange2D& inner_range, flt_t 
                      view& pmat, view& cmat, view& gmat)
 KERNEL_TRY {
     CHECK_VIEW_LABELS(rho, umat, vmat, Emat, cmat, pmat, gmat);
-    parallel_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i) {
-        Idx i = inner_range.scale_index(lin_i);
+    CONST_UNPACK(iter_range, iter_inner_range, iter(range, inner_range));
+    parallel_kernel(iter_range, KOKKOS_LAMBDA(ITER_IDX_DEF) {
+        Idx i = iter_inner_range.scale_index(ITER_IDX);
         flt_t e = Emat[i] - flt_t(0.5) * (Kokkos::pow(umat[i], flt_t(2)) + Kokkos::pow(vmat[i], flt_t(2)));
         pmat[i] = (gamma - 1) * rho[i] * e;
         cmat[i] = Kokkos::sqrt(gamma * pmat[i] / rho[i]);
@@ -33,9 +33,9 @@ KERNEL_TRY {
 
     CHECK_VIEW_LABELS(rho, umat, vmat, Emat, cmat, pmat, gmat);
 
-    parallel_kernel(range,
-    KOKKOS_LAMBDA(const UIdx lin_i) {
-        Idx i = inner_range.scale_index(lin_i);
+    CONST_UNPACK(iter_range, iter_inner_range, iter(range, inner_range));
+    parallel_kernel(iter_range, KOKKOS_LAMBDA(ITER_IDX_DEF) {
+        Idx i = iter_inner_range.scale_index(ITER_IDX);
 
         flt_t x = rho[i] / rho0 - 1;
         flt_t g = G0 * (1 - rho0 / rho[i]);

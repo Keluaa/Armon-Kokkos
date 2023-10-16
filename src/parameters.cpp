@@ -128,6 +128,7 @@ void Params::print() const
 #else
     printf(", without fast math\n");
 #endif
+    printf(" - use MD loops: %d\n", USE_MD_ITER);
 #ifdef KOKKOS_ENABLE_CUDA
     printf(" - use gpu:    %d\n", Kokkos::Cuda::impl_is_initialized());
 #elif defined(KOKKOS_ENABLE_HIP)

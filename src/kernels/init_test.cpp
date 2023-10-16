@@ -60,6 +60,7 @@ void init_test(const Range& range, const InnerRange1D& inner_range,
     CHECK_VIEW_LABELS(x, y, rho, Emat, umat, vmat, domain_mask, pmat, cmat, ustar, pstar);
     parallel_kernel(range,
     KOKKOS_LAMBDA(const UIdx lin_i) {
+    parallel_kernel(range, KOKKOS_LAMBDA(const UIdx lin_i) {
         Idx i = inner_range.scale_index(lin_i);
 
         Idx ix = (i % row_length) - nb_ghosts;
