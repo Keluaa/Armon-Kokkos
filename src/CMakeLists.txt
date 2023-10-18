@@ -33,6 +33,7 @@ target_compile_definitions(${LIB_NAME_2D} PUBLIC
         USE_NVTX=${NVTX}
         USE_SIMD_KERNELS=${SIMD_KERNELS}
         USE_MD_ITER=${MD_ITER}
+        BALANCE_MD_ITER=${BALANCE_MD_ITER}
         PREFERRED_SIMD_SIZE=${PREFERRED_SIMD_SIZE})
 
 add_executable(${EXE_NAME_2D}
