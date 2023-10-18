@@ -50,9 +50,6 @@ else()
     set(Kokkos_ENABLE_DEBUG OFF CACHE BOOL "Kokkos_ENABLE_DEBUG" FORCE)
     set(Kokkos_ENABLE_DEBUG_BOUNDS_CHECK OFF CACHE BOOL "Kokkos_ENABLE_DEBUG_BOUNDS_CHECK" FORCE)
 
-    # Optimize for the native architecture when using only the CPU
-    set(Kokkos_ARCH_NATIVE ON CACHE BOOL "Kokkos_ARCH_NATIVE" FORCE)
-
     set(OPTIONS "-ffast-math")
 endif()
 
@@ -62,6 +59,7 @@ option(USE_SINGLE_PRECISION "Use float instead of double" OFF)
 option(USE_NVTX "Enable NVTX tracing" OFF)
 option(USE_SIMD_KERNELS "Use team vector loops instead of normal loops" OFF)
 option(USE_MD_ITER "Use Kokkos::MDRangePolicy instead of Kokkos::RangePolicy" OFF)
+option(BALANCE_MD_ITER "Use a mediocre load balancing algorithm for OpenMP threads when USE_MD_ITER=ON" OFF)
 option(CHECK_VIEW_ORDER "Check if Kokkos::View parameters in kernels are in the correct order" OFF)
 option(TRY_ALL_CALLS "Surround all exported kernel functions with a try-catch block" OFF)
 
@@ -91,6 +89,12 @@ if(USE_MD_ITER)
     set(MD_ITER 1)
 else()
     set(MD_ITER 0)
+endif()
+
+if (BALANCE_MD_ITER)
+    set(BALANCE_MD_ITER 1)
+else()
+    set(BALANCE_MD_ITER 0)
 endif()
 
 

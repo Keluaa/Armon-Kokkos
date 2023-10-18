@@ -7,7 +7,7 @@
 
 
 extern "C"
-void perfect_gas_EOS(const Range& range, const InnerRange2D& inner_range, flt_t gamma,
+void perfect_gas_EOS(const Range& range, const InnerRange2D& inner_range, const flt_t gamma,
                      const view& rho, const view& Emat, const view& umat, const view& vmat,
                      view& pmat, view& cmat, view& gmat)
 KERNEL_TRY {

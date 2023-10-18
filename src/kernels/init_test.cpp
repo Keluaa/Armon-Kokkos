@@ -58,8 +58,13 @@ void init_test(const Range& range, const InnerRange1D& inner_range,
                TestParams test_params, TestCase test, bool debug_indexes)
 {
     CHECK_VIEW_LABELS(x, y, rho, Emat, umat, vmat, domain_mask, pmat, cmat, gmat, ustar, pstar);
-    parallel_kernel(range, KOKKOS_LAMBDA(const UIdx lin_i) {
-        Idx i = inner_range.scale_index(lin_i);
+
+    // Bad choices made me use InnerRange1D, but we need a 2D iteration for NUMA: this is where first-touch policy magic
+    // takes place, therefore we must iterate the data in the same way as the performance critical kernels do.
+    auto inner_range_2D = InnerRange2D{inner_range.start, row_length, 0, static_cast<UIdx>(row_length)};
+    CONST_UNPACK(iter_range, iter_inner_range, iter(range, inner_range_2D));
+    parallel_kernel(iter_range, KOKKOS_LAMBDA(ITER_IDX_DEF) {
+        Idx i = iter_inner_range.scale_index(ITER_IDX);
 
         Idx ix = (i % row_length) - nb_ghosts;
         Idx iy = (i / row_length) - nb_ghosts;

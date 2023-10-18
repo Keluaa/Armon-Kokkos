@@ -137,6 +137,10 @@ inline Kokkos::TeamPolicy<Index_t> iter_simd(const Range& range, int V)
 }
 
 
+double overwork_factor(long N, long T, long tile_y_size);
+long optimal_split_iter_space(long N, long threads, double overwork_tolerance = 0.10);
+
+
 inline std::tuple<Kokkos::MDRangePolicy<Kokkos::Rank<2>, Index_t>, MDInnerRange2D> iter_md_2D(const Range& range, const InnerRange2D& inner_range)
 {
     long first_i = inner_range.scale_index(range.start);
@@ -147,8 +151,20 @@ inline std::tuple<Kokkos::MDRangePolicy<Kokkos::Rank<2>, Index_t>, MDInnerRange2
     long end_x   = last_i  % inner_range.main_range_step + 1;
     long end_y   = last_i  / inner_range.main_range_step + 1;
 
+#ifdef KOKKOS_ENABLE_OPENMP
+    // Very important for NUMA => group tiles by threads.
+    // The default is a round-robin distribution amongst threads, which is terrible.
+    // A size of `0` means Kokkos default.
+    long max_threads = Kokkos::OpenMP::concurrency();
+    long tile_y_size = std::is_same_v<Kokkos::DefaultExecutionSpace, Kokkos::OpenMP> && BALANCE_MD_ITER
+            ? optimal_split_iter_space(end_y - start_y, max_threads)
+            : 0;
+#else
+    long tile_y_size = 0;
+#endif
+
     return {
-        { { start_y, start_x }, { end_y, end_x } },
+        { { start_y, start_x }, { end_y, end_x }, { tile_y_size, 0 } },
         { inner_range.main_range_step }
     };
 }

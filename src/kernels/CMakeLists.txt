@@ -16,10 +16,12 @@ add_library(armon_kernels SHARED
 target_link_libraries(armon_kernels PRIVATE Kokkos::kokkos)
 target_compile_options(armon_kernels PRIVATE
         $<$<CONFIG:Debug>:-Wall -Wextra -Wpedantic>
-        $<IF:$<STREQUAL:$<CXX_COMPILER_ID>,Clang>,-Wno-gnu-zero-variadic-macro-arguments,>)
+        $<IF:$<STREQUAL:$<CXX_COMPILER_ID>,Clang>,-Wno-gnu-zero-variadic-macro-arguments,>
+        ${OPTIONS})
 target_compile_definitions(armon_kernels PRIVATE
         USE_SIMD_KERNELS=${SIMD_KERNELS}
         USE_MD_ITER=${MD_ITER}
+        BALANCE_MD_ITER=${BALANCE_MD_ITER}
         PREFERRED_SIMD_SIZE=${PREFERRED_SIMD_SIZE}
         USE_SINGLE_PRECISION=${PRECISION}
         CHECK_VIEW_ORDER
