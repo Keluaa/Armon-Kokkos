@@ -137,11 +137,30 @@ inline Kokkos::TeamPolicy<Index_t> iter_simd(const Range& range, int V)
 }
 
 
+inline std::tuple<std::tuple<Kokkos::TeamPolicy<Index_t>, std::tuple<long, long, long>>, MDInnerRange2D>
+        iter_2d(const Range& range, const InnerRange2D& inner_range)
+{
+    long first_i = inner_range.scale_index(range.start);
+    long last_i  = inner_range.scale_index(range.end - 1);
+
+    long start_x = first_i % inner_range.main_range_step;
+    long start_y = first_i / inner_range.main_range_step;
+    long end_x   = last_i  % inner_range.main_range_step + 1;
+    long end_y   = last_i  / inner_range.main_range_step + 1;
+
+    return {
+            { Kokkos::TeamPolicy<Index_t>(end_y - start_y, Kokkos::AUTO), std::make_tuple(start_y, start_x, end_x) },
+            { inner_range.main_range_step }
+    };
+}
+
+
 double overwork_factor(long N, long T, long tile_y_size);
 long optimal_split_iter_space(long N, long threads, double overwork_tolerance = 0.10);
 
 
-inline std::tuple<Kokkos::MDRangePolicy<Kokkos::Rank<2>, Index_t>, MDInnerRange2D> iter_md_2D(const Range& range, const InnerRange2D& inner_range)
+inline std::tuple<Kokkos::MDRangePolicy<Kokkos::Rank<2>, Index_t>, MDInnerRange2D>
+        iter_md(const Range& range, const InnerRange2D& inner_range)
 {
     long first_i = inner_range.scale_index(range.start);
     long last_i  = inner_range.scale_index(range.end - 1);
@@ -172,15 +191,17 @@ inline std::tuple<Kokkos::MDRangePolicy<Kokkos::Rank<2>, Index_t>, MDInnerRange2
 
 inline auto iter(const Range& range, const InnerRange2D& inner_range)
 {
-#if USE_MD_ITER
-    return iter_md_2D(range, inner_range);
+#if USE_2D_ITER
+    return iter_2d(range, inner_range);
+#elif USE_MD_ITER
+    return iter_md(range, inner_range);
 #else
     return std::make_tuple(range, inner_range);
 #endif  // USE_MD_ITER
 }
 
 
-#if USE_MD_ITER
+#if USE_2D_ITER || USE_MD_ITER
 #define ITER_IDX_DEF const UIdx _ij, const UIdx _ix
 #define ITER_IDX _ij, _ix
 #else

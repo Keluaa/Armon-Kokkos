@@ -5,6 +5,7 @@
 #include <Kokkos_Core.hpp>
 
 #include "indexing.h"
+#include "utils.h"
 
 
 #if KOKKOS_VERSION >= 40000
@@ -71,6 +72,22 @@ void parallel_kernel(const Kokkos::MDRangePolicy<PolicyParams...>& range, const 
 }
 
 
+template<typename... Y_PolicyParams, typename Functor>
+void parallel_kernel(const std::tuple<Kokkos::TeamPolicy<Y_PolicyParams...>, std::tuple<long, long, long>>& ranges,
+                     const Functor& functor)
+{
+    CONST_UNPACK(y_policy, ranges_info, ranges);
+    CONST_UNPACK_3(start_y, start_x, end_x, ranges_info);
+    Kokkos::parallel_for(y_policy, KOKKOS_LAMBDA(const typename decltype(y_policy)::member_type& team) {
+        auto thread_policy = Kokkos::TeamThreadRange<>(team, start_x, end_x);
+        const Idx j = start_y + team.league_rank();
+        Kokkos::parallel_for(thread_policy, [&](const Idx i) {
+            functor(j, i);
+        });
+    });
+}
+
+
 template<typename Functor, typename Reducer>
 void parallel_reduce_kernel(const Range& range, const Functor& functor, const Reducer& global_reducer)
 {
@@ -120,6 +137,34 @@ template<typename... PolicyParams, typename Functor, typename Reducer>
 void parallel_reduce_kernel(const Kokkos::MDRangePolicy<PolicyParams...>& range, const Functor& functor, const Reducer& global_reducer)
 {
     Kokkos::parallel_reduce(range, functor, global_reducer);
+}
+
+
+template<typename... Y_PolicyParams, typename Functor, typename Reducer>
+void parallel_reduce_kernel(const std::tuple<Kokkos::TeamPolicy<Y_PolicyParams...>, std::tuple<long, long, long>>& ranges,
+                            const Functor& functor, const Reducer& global_reducer)
+{
+    using R_ref = decltype(global_reducer.reference());
+    using R_val = typename Reducer::value_type;
+
+    CONST_UNPACK(y_policy, ranges_info, ranges);
+    CONST_UNPACK_3(start_y, start_x, end_x, ranges_info);
+
+    Kokkos::parallel_reduce(y_policy, KOKKOS_LAMBDA(const typename decltype(y_policy)::member_type& team, R_ref result) {
+        R_val team_result;
+        const auto team_reducer = Reducer(team_result);
+        team_reducer.init(team_result);
+
+        auto thread_policy = Kokkos::TeamThreadRange<>(team, start_x, end_x);
+        const Idx j = start_y + team.team_rank();
+        Kokkos::parallel_reduce(thread_policy, [&](const Idx i, R_ref x_result) {
+            functor(j, i, x_result);
+        }, team_reducer);
+
+        if (team.team_rank() == 0) {
+            team_reducer.join(result, team_result);  // Accumulate once per team
+        }
+    }, global_reducer);
 }
 
 #endif // ARMON_KOKKOS_PARALLEL_KERNELS

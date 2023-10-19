@@ -20,6 +20,7 @@ target_compile_options(armon_kernels PRIVATE
         ${OPTIONS})
 target_compile_definitions(armon_kernels PRIVATE
         USE_SIMD_KERNELS=${SIMD_KERNELS}
+        USE_2D_ITER=${2D_ITER}
         USE_MD_ITER=${MD_ITER}
         BALANCE_MD_ITER=${BALANCE_MD_ITER}
         PREFERRED_SIMD_SIZE=${PREFERRED_SIMD_SIZE}

@@ -7,6 +7,15 @@
 #include <string>
 
 
+#define VA_NARGS_IMPL(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, N, ...) N
+#define VA_NARGS(...) VA_NARGS_IMPL(__VA_ARGS__, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
+
+
+#define DYN_APPLY_IMPL_2(expr) expr
+#define DYN_APPLY_IMPL_1(prefix, suffix) DYN_APPLY_IMPL_2(prefix ## suffix)
+#define DYN_APPLY(prefix, suffix) DYN_APPLY_IMPL_1(prefix, suffix)
+
+
 #define APPLY_IMPL(expr) expr
 
 #define APPLY_1(f, arg1, ...) \
@@ -62,15 +71,6 @@
     APPLY_4(f, arg9, arg10, arg11, arg12, ## __VA_ARGS__)
 
 
-#define VA_NARGS_IMPL(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, N, ...) N
-#define VA_NARGS(...) VA_NARGS_IMPL(__VA_ARGS__, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
-
-
-#define DYN_APPLY_IMPL_2(expr) expr
-#define DYN_APPLY_IMPL_1(prefix, suffix) DYN_APPLY_IMPL_2(prefix ## suffix)
-#define DYN_APPLY(prefix, suffix) DYN_APPLY_IMPL_1(prefix, suffix)
-
-
 #ifdef CHECK_VIEW_ORDER
 inline bool ends_with(const std::string& str, const std::string& suffix)
 {
@@ -124,6 +124,12 @@ __attribute__((noreturn)) void raise_exception(const char* kernel_name, const st
     const auto [_ ## a, _ ## b] = expr; \
     const auto a = _ ## a;              \
     const auto b = _ ## b
+
+#define CONST_UNPACK_3(a, b, c, expr)           \
+    const auto [_ ## a, _ ## b, _ ## c] = expr; \
+    const auto a = _ ## a;                      \
+    const auto b = _ ## b;                      \
+    const auto c = _ ## c
 
 
 #endif //ARMON_KOKKOS_UTILS_H
