@@ -46,15 +46,15 @@ template<typename Functor>
 void parallel_kernel(const Range& range, const Functor& functor)
 {
 #if USE_SIMD_KERNELS
-    constexpr unsigned int V = get_vector_size<Kokkos::DefaultExecutionSpace, flt_t>();
+    constexpr Idx V = get_vector_size<Kokkos::DefaultExecutionSpace, flt_t>();
     Kokkos::parallel_for(iter_simd(range, V),
     KOKKOS_LAMBDA(const Team_t& team) {
         const Idx team_idx_size = team.team_size() * V;
-        const Idx team_i = range.start + team.league_rank() * team_idx_size;
+        const Idx team_i = static_cast<Idx>(range.start) + team.league_rank() * team_idx_size;
         const auto team_threads = Kokkos::TeamThreadRange(team, team.team_size());
         Kokkos::parallel_for(team_threads, [&](Idx thread_idx) {
             const Idx thread_i = team_i + thread_idx * V;
-            const Idx thread_end = Kokkos::min(thread_i + V, range.end);
+            const Idx thread_end = Kokkos::min(thread_i + static_cast<Idx>(V), range.end);
             const auto thread_vectors = Kokkos::ThreadVectorRange(team, thread_i, thread_end);
             Kokkos::parallel_for(thread_vectors, functor);
         });
@@ -92,7 +92,7 @@ template<typename Functor, typename Reducer>
 void parallel_reduce_kernel(const Range& range, const Functor& functor, const Reducer& global_reducer)
 {
 #if USE_SIMD_KERNELS
-    constexpr unsigned int V = get_vector_size<Kokkos::DefaultExecutionSpace, flt_t>();
+    constexpr Idx V = get_vector_size<Kokkos::DefaultExecutionSpace, flt_t>();
 
     using R_ref = decltype(global_reducer.reference());
     using R_val = typename Reducer::value_type;

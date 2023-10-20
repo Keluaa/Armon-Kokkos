@@ -29,7 +29,7 @@ void conservation_vars(const Range& range, const InnerRange1D& inner_range, flt_
                        const view& rho, const view& Emat, const mask_view& domain_mask,
                        flt_t& total_mass, flt_t& total_energy)
 KERNEL_TRY {
-    auto reducer_tuple = std::make_tuple(total_mass, total_energy);
+    auto reducer_tuple = Kokkos::make_pair(total_mass, total_energy);
     auto reducer = DoubleReducer<Kokkos::Sum<flt_t>>(reducer_tuple);
     using Reducer_val = decltype(reducer)::value_type;
 
@@ -41,9 +41,9 @@ KERNEL_TRY {
         Idx i = inner_range.scale_index(lin_i);
         flt_t cell_mass = rho[i] * domain_mask[i] * ds;
         flt_t cell_energy = cell_mass * Emat[i];
-        std::get<0>(mass_and_energy) += cell_mass;
-        std::get<1>(mass_and_energy) += cell_energy;
+        mass_and_energy.first += cell_mass;
+        mass_and_energy.second += cell_energy;
     }, reducer);
 
-    std::tie(total_mass, total_energy) = reducer_tuple;
+    std::tie(total_mass, total_energy) = reducer_tuple.to_std_pair();
 } KERNEL_CATCH

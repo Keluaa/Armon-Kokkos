@@ -75,7 +75,7 @@ std::tuple<Range, InnerRange1D> DomainRange::directIter1D() const
 {
     return {
             { 0, static_cast<Idx>(length()) },
-            { begin(), row_step }
+            { static_cast<Idx>(begin()), static_cast<Idx>(row_step) }
     };
 }
 
@@ -83,8 +83,8 @@ std::tuple<Range, InnerRange1D> DomainRange::directIter1D() const
 std::tuple<Range, InnerRange1D> DomainRange::iter1D() const
 {
     return {
-            { 0, end() - begin() + 1 },
-            { begin(), row_step }
+            { 0, static_cast<Idx>(end() - begin() + 1) },
+            { static_cast<Idx>(begin()), static_cast<Idx>(row_step) }
     };
 }
 
@@ -93,7 +93,7 @@ std::tuple<Range, InnerRange2D> DomainRange::iter2D() const
 {
     return {
             { 0, static_cast<Idx>(length()) },
-            { col_start, col_step, row_start, row_length() }
+            { static_cast<Idx>(col_start), static_cast<Idx>(col_step), static_cast<Idx>(row_start), static_cast<UIdx>(row_length()) }
     };
 }
 

@@ -19,10 +19,10 @@
  * Usage:
  * ```
  *     T a, b;
- *     auto value_tuple = std::make_tuple(a, b);
+ *     auto value_tuple = Kokkos::make_pair(a, b);
  *     auto reducer = DoubleReducer<Kokkos::Min<T>>(value_tuple);
  *     Kokkos::parallel_reduce(policy, functor, reducer);
- *     std::tie(a, b) = value_tuple;
+ *     std::tie(a, b) = value_tuple.to_std_pair();
  * ```
  */
 template<typename Reducer>
@@ -30,7 +30,7 @@ class DoubleReducer
 {
 public:
     using reducer = DoubleReducer<Reducer>;
-    using value_type = std::tuple<typename Reducer::value_type, typename Reducer::value_type>;
+    using value_type = Kokkos::pair<typename Reducer::value_type, typename Reducer::value_type>;
     using result_view_type = Kokkos::View<value_type, typename Reducer::result_view_type::memory_space>;
 
 private:
@@ -41,14 +41,14 @@ public:
 
     KOKKOS_INLINE_FUNCTION
     void join(value_type& dest, const value_type& src) const {
-        delegate.join(std::get<0>(dest), std::get<0>(src));
-        delegate.join(std::get<1>(dest), std::get<1>(src));
+        delegate.join(dest.first, src.first);
+        delegate.join(dest.second, src.second);
     }
 
     KOKKOS_INLINE_FUNCTION
     void init(value_type& val) const {
-        delegate.init(std::get<0>(val));
-        delegate.init(std::get<1>(val));
+        delegate.init(val.first);
+        delegate.init(val.second);
     }
 
     KOKKOS_INLINE_FUNCTION
@@ -59,43 +59,43 @@ public:
 
     KOKKOS_INLINE_FUNCTION
     DoubleReducer(value_type& value)
-        : delegate(std::get<0>(value))  // Dummy constructor call
+        : delegate(value.first)  // Dummy constructor call
         , value(&value)
     { }
 
     KOKKOS_INLINE_FUNCTION
     DoubleReducer(const result_view_type& value)
-        : delegate(std::get<0>(value()))  // Dummy constructor call
+        : delegate(value.first)  // Dummy constructor call
         , value(value)
     { }
 };
 
 
 template <typename T>
-struct Kokkos::reduction_identity<std::tuple<T, T>> {
-    KOKKOS_FORCEINLINE_FUNCTION constexpr static std::tuple<T, T> sum() {
-        return std::make_tuple(Kokkos::reduction_identity<T>::sum(), Kokkos::reduction_identity<T>::sum());
+struct Kokkos::reduction_identity<Kokkos::pair<T, T>> {
+    KOKKOS_FORCEINLINE_FUNCTION constexpr static Kokkos::pair<T, T> sum() {
+        return Kokkos::make_pair(Kokkos::reduction_identity<T>::sum(), Kokkos::reduction_identity<T>::sum());
     }
-    KOKKOS_FORCEINLINE_FUNCTION constexpr static std::tuple<T, T> prod() {
-        return std::make_tuple(Kokkos::reduction_identity<T>::prod(), Kokkos::reduction_identity<T>::prod());
+    KOKKOS_FORCEINLINE_FUNCTION constexpr static Kokkos::pair<T, T> prod() {
+        return Kokkos::make_pair(Kokkos::reduction_identity<T>::prod(), Kokkos::reduction_identity<T>::prod());
     }
-    KOKKOS_FORCEINLINE_FUNCTION constexpr static std::tuple<T, T> max() {
-        return std::make_tuple(Kokkos::reduction_identity<T>::max(), Kokkos::reduction_identity<T>::max());
+    KOKKOS_FORCEINLINE_FUNCTION constexpr static Kokkos::pair<T, T> max() {
+        return Kokkos::make_pair(Kokkos::reduction_identity<T>::max(), Kokkos::reduction_identity<T>::max());
     }
-    KOKKOS_FORCEINLINE_FUNCTION constexpr static std::tuple<T, T> min() {
-        return std::make_tuple(Kokkos::reduction_identity<T>::min(), Kokkos::reduction_identity<T>::min());
+    KOKKOS_FORCEINLINE_FUNCTION constexpr static Kokkos::pair<T, T> min() {
+        return Kokkos::make_pair(Kokkos::reduction_identity<T>::min(), Kokkos::reduction_identity<T>::min());
     }
-    KOKKOS_FORCEINLINE_FUNCTION constexpr static std::tuple<T, T> bor() {
-        return std::make_tuple(Kokkos::reduction_identity<T>::bor(), Kokkos::reduction_identity<T>::bor());
+    KOKKOS_FORCEINLINE_FUNCTION constexpr static Kokkos::pair<T, T> bor() {
+        return Kokkos::make_pair(Kokkos::reduction_identity<T>::bor(), Kokkos::reduction_identity<T>::bor());
     }
-    KOKKOS_FORCEINLINE_FUNCTION constexpr static std::tuple<T, T> band() {
-        return std::make_tuple(Kokkos::reduction_identity<T>::band(), Kokkos::reduction_identity<T>::band());
+    KOKKOS_FORCEINLINE_FUNCTION constexpr static Kokkos::pair<T, T> band() {
+        return Kokkos::make_pair(Kokkos::reduction_identity<T>::band(), Kokkos::reduction_identity<T>::band());
     }
-    KOKKOS_FORCEINLINE_FUNCTION constexpr static std::tuple<T, T> lor() {
-        return std::make_tuple(Kokkos::reduction_identity<T>::lor(), Kokkos::reduction_identity<T>::lor());
+    KOKKOS_FORCEINLINE_FUNCTION constexpr static Kokkos::pair<T, T> lor() {
+        return Kokkos::make_pair(Kokkos::reduction_identity<T>::lor(), Kokkos::reduction_identity<T>::lor());
     }
-    KOKKOS_FORCEINLINE_FUNCTION constexpr static std::tuple<T, T> land() {
-        return std::make_tuple(Kokkos::reduction_identity<T>::land(), Kokkos::reduction_identity<T>::land());
+    KOKKOS_FORCEINLINE_FUNCTION constexpr static Kokkos::pair<T, T> land() {
+        return Kokkos::make_pair(Kokkos::reduction_identity<T>::land(), Kokkos::reduction_identity<T>::land());
     }
 };
 
@@ -111,20 +111,20 @@ public:
     // Required
     KOKKOS_INLINE_FUNCTION
     static void join(value_type& dest, const value_type& src) {
-        Kokkos::Impl::OpenMPTargetReducerWrapper<Reducer>().join(std::get<0>(dest), std::get<0>(src));
-        Kokkos::Impl::OpenMPTargetReducerWrapper<Reducer>().join(std::get<1>(dest), std::get<1>(src));
+        Kokkos::Impl::OpenMPTargetReducerWrapper<Reducer>().join(dest.first, src.first);
+        Kokkos::Impl::OpenMPTargetReducerWrapper<Reducer>().join(dest.second, src.second);
     }
 
     KOKKOS_INLINE_FUNCTION
     static void join(volatile value_type& dest, const volatile value_type& src) {
-        Kokkos::Impl::OpenMPTargetReducerWrapper<Reducer>().join(std::get<0>(dest), std::get<0>(src));
-        Kokkos::Impl::OpenMPTargetReducerWrapper<Reducer>().join(std::get<1>(dest), std::get<1>(src));
+        Kokkos::Impl::OpenMPTargetReducerWrapper<Reducer>().join(dest.first, src.first);
+        Kokkos::Impl::OpenMPTargetReducerWrapper<Reducer>().join(dest.second, src.second);
     }
 
     KOKKOS_INLINE_FUNCTION
     static void init(value_type& val) {
-        Kokkos::Impl::OpenMPTargetReducerWrapper<Reducer>().init(std::get<0>(val));
-        Kokkos::Impl::OpenMPTargetReducerWrapper<Reducer>().init(std::get<1>(val));
+        Kokkos::Impl::OpenMPTargetReducerWrapper<Reducer>().init(val.first);
+        Kokkos::Impl::OpenMPTargetReducerWrapper<Reducer>().init(val.second);
     }
 };
 
