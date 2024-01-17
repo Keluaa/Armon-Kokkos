@@ -1,10 +1,11 @@
 
 use_omp ?= 1
 use_simd ?= 1
+use_md_iter ?= 0
 use_single ?= 0
 use_nvtx ?= 0
 compiler ?=
-dim ?= 1
+dim ?= 2
 
 extra_cuda ?=
 extra_hip ?=
@@ -23,6 +24,16 @@ else
 	_simd = -DKokkos_ENABLE_SIMD=OFF -DUSE_SIMD_KERNELS=OFF
 endif
 
+ifeq ($(use_md_iter), 0)
+	_md_iter = -DUSE_2D_ITER=OFF -DUSE_MD_ITER=OFF -DBALANCE_MD_ITER=OFF
+else ifeq ($(use_md_iter), 1)
+	_md_iter = -DUSE_2D_ITER=ON  -DUSE_MD_ITER=OFF -DBALANCE_MD_ITER=OFF
+else ifeq ($(use_md_iter), 2)
+	_md_iter = -DUSE_2D_ITER=OFF -DUSE_MD_ITER=ON  -DBALANCE_MD_ITER=OFF
+else ifeq ($(use_md_iter), 3)
+	_md_iter = -DUSE_2D_ITER=OFF -DUSE_MD_ITER=ON  -DBALANCE_MD_ITER=ON
+endif
+
 ifeq ($(use_single), 1)
 	_flt = -DUSE_SINGLE_PRECISION=ON
 else
@@ -36,11 +47,13 @@ else
 endif
 
 ifeq ($(compiler), icc)
-	comp = -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc	
+	comp = -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc
+else ifeq ($(compiler), icx)
+	comp = -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx
 else ifeq ($(compiler), gcc)
 	comp = -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
 else ifeq ($(compiler), clang)
-	comp = -DCMAKE_C_COMPILER=clang-11 -DCMAKE_CXX_COMPILER=clang++-11
+	comp = -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 else ifeq ($(compiler),)
 $(info "Using default CMake compiler")
 else 
@@ -100,7 +113,7 @@ $(RUN_DIR):
 build-cuda:
 	@mkdir -p ./cmake-build-cuda
 	rm -f ./cmake-build-cuda/CMakeCache.txt
-	cd ./cmake-build-cuda && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DKokkos_ENABLE_CUDA=ON $(comp) $(_omp) $(_simd) $(_flt) $(_nvtx) $(extra_cuda) .. && $(MAKE) $(make_args) clean
+	cd ./cmake-build-cuda && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DKokkos_ENABLE_CUDA=ON $(comp) $(_omp) $(_simd) $(_md_iter) $(_flt) $(_nvtx) $(extra_cuda) .. && $(MAKE) $(make_args) clean
 
 run-cuda: ./cmake-build-cuda/src/armon_cuda$(_dim).exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-cuda/src/armon_cuda$(_dim).exe $(args_)
@@ -108,7 +121,7 @@ run-cuda: ./cmake-build-cuda/src/armon_cuda$(_dim).exe $(RUN_DIR)
 build-hip:
 	@mkdir -p ./cmake-build-hip
 	rm -f ./cmake-build-hip/CMakeCache.txt
-	cd ./cmake-build-hip  && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DCMAKE_CXX_COMPILER=$(hip_compiler) -DKokkos_ENABLE_HIP=ON $(_omp) $(_simd) $(_flt) $(extra_hip) .. && $(MAKE) $(make_args) clean
+	cd ./cmake-build-hip  && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DCMAKE_CXX_COMPILER=$(hip_compiler) -DKokkos_ENABLE_HIP=ON $(_omp) $(_simd) $(_md_iter) $(_flt) $(extra_hip) .. && $(MAKE) $(make_args) clean
 
 run-hip: ./cmake-build-hip/src/armon_hip$(_dim).exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-hip/src/armon_hip$(_dim).exe $(args_)
@@ -116,7 +129,7 @@ run-hip: ./cmake-build-hip/src/armon_hip$(_dim).exe $(RUN_DIR)
 build-omp:
 	@mkdir -p ./cmake-build-openmp
 	rm -f ./cmake-build-openmp/CMakeCache.txt
-	cd ./cmake-build-openmp && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DKokkos_ENABLE_OPENMP=ON $(comp) $(_simd) $(_flt) $(extra_omp) .. && $(MAKE) $(make_args) clean
+	cd ./cmake-build-openmp && cmake -DCMAKE_BUILD_TYPE=$(build_type) -DKokkos_ENABLE_OPENMP=ON $(comp) $(_simd) $(_md_iter) $(_flt) $(extra_omp) .. && $(MAKE) $(make_args) clean
 
 run-omp: ./cmake-build-openmp/src/armon_openmp$(_dim).exe $(RUN_DIR)
 	cd $(RUN_DIR) && ../cmake-build-openmp/src/armon_openmp$(_dim).exe $(args_)

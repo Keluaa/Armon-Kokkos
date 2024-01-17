@@ -53,7 +53,6 @@ else()
     set(OPTIONS "-ffast-math")
 endif()
 
-
 # Project Options
 option(USE_SINGLE_PRECISION "Use float instead of double" OFF)
 option(USE_NVTX "Enable NVTX tracing" OFF)
@@ -63,6 +62,10 @@ option(USE_MD_ITER "Use Kokkos::MDRangePolicy instead of Kokkos::RangePolicy" OF
 option(BALANCE_MD_ITER "Use a mediocre load balancing algorithm for OpenMP threads when USE_MD_ITER=ON" OFF)
 option(CHECK_VIEW_ORDER "Check if Kokkos::View parameters in kernels are in the correct order" OFF)
 option(TRY_ALL_CALLS "Surround all exported kernel functions with a try-catch block" OFF)
+
+if(USE_SIMD_KERNELS AND (Kokkos_ENABLE_CUDA OR Kokkos_ENABLE_HIP))
+    message(WARNING "SIMD kernels are extremely slow on GPU")
+endif()
 
 if((USE_SIMD_KERNELS AND USE_MD_ITER) OR (USE_SIMD_KERNELS AND USE_2D_ITER) OR (USE_2D_ITER AND USE_MD_ITER))
     message(FATAL_ERROR "Only one of USE_SIMD_KERNELS, USE_2D_ITER and USE_MD_ITER can be ON")
@@ -107,16 +110,15 @@ endif()
 
 include(detect_simd_size.cmake)
 
-
-if (NOT DEFINED ARMON_KOKKOS_ROOT)
-    set(ARMON_KOKKOS_ROOT "${PROJECT_SOURCE_DIR}/modules/kokkos")
-endif()
-
 # Important: required to build shared libraries using Kokkos
 set(BUILD_SHARED_LIBS ON)
 
 # Project Modules
-add_subdirectory(${ARMON_KOKKOS_ROOT} lib)
+if (NOT DEFINED Kokkos_ROOT)
+    add_subdirectory("${PROJECT_SOURCE_DIR}/modules/kokkos" lib)  # Use Kokkos in-tree
+else()
+    find_package(Kokkos REQUIRED)  # Use the provided Kokkos installation
+endif()
 
 # Project Sources
 include_directories(${Kokkos_INCLUDE_DIRS_RET})
