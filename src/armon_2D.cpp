@@ -111,7 +111,7 @@ void cell_update(const Params& p, Data& d)
 
 void init_test(const Params& p, Data& d, bool debug_indexes)
 {
-    auto [range, inner_range] = complete_domain(p).iter1D();
+    auto [range, inner_range] = complete_domain(p).iter2D();
 
     flt_t dx = p.domain_size[0] / flt_t(p.nx);
     flt_t dy = p.domain_size[1] / flt_t(p.ny);

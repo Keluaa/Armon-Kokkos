@@ -49,7 +49,7 @@ void TestSedov::init_params(TestParams& test_params) const
 
 
 template<typename TestCase>
-void init_test(const Range& range, const InnerRange1D& inner_range,
+void init_test(const Range& range, const InnerRange2D& inner_range,
                Idx row_length, Idx nb_ghosts,
                Idx nx, Idx ny, Idx g_nx, Idx g_ny, Idx pos_x, Idx pos_y,
                flt_t sx, flt_t sy, flt_t ox, flt_t oy,
@@ -58,11 +58,7 @@ void init_test(const Range& range, const InnerRange1D& inner_range,
                TestParams test_params, TestCase test, bool debug_indexes)
 {
     CHECK_VIEW_LABELS(x, y, rho, Emat, umat, vmat, domain_mask, pmat, cmat, gmat, ustar, pstar);
-
-    // Bad choices made me use InnerRange1D, but we need a 2D iteration for NUMA: this is where first-touch policy magic
-    // takes place, therefore we must iterate the data in the same way as the performance critical kernels do.
-    auto inner_range_2D = InnerRange2D{inner_range.start, row_length, 0, static_cast<UIdx>(row_length)};
-    CONST_UNPACK(iter_range, iter_inner_range, iter(range, inner_range_2D));
+    CONST_UNPACK(iter_range, iter_inner_range, iter(range, inner_range));
     parallel_kernel(iter_range, KOKKOS_LAMBDA(ITER_IDX_DEF) {
         Idx i = iter_inner_range.scale_index(ITER_IDX);
 
@@ -109,7 +105,7 @@ void init_test(const Range& range, const InnerRange1D& inner_range,
 
 
 extern "C"
-void init_test(const Range& range, const InnerRange1D& inner_range,
+void init_test(const Range& range, const InnerRange2D& inner_range,
                Idx row_length, Idx nb_ghosts, Idx nx, Idx ny, flt_t sx,
                flt_t sy, flt_t ox, flt_t oy, Idx pos_x, Idx pos_y, Idx g_nx, Idx g_ny,
                view& x, view& y, view& rho, view& Emat, view& umat, view& vmat,

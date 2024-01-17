@@ -69,7 +69,7 @@ void write_border_array(const Range& range, const InnerRange2D& inner_range,
                         const view& value_array);
 
 extern "C" DLL_EXPORT
-void init_test(const Range& range, const InnerRange1D& inner_range,
+void init_test(const Range& range, const InnerRange2D& inner_range,
                Idx row_length, Idx nb_ghosts, Idx nx, Idx ny, flt_t sx,
                flt_t sy, flt_t ox, flt_t oy, Idx pos_x, Idx pos_y, Idx g_nx, Idx g_ny,
                view& x, view& y, view& rho, view& Emat, view& umat, view& vmat, mask_view& domain_mask,
